@@ -85,9 +85,11 @@ export function ScorePanel({ leadId, score, scoreReason, scoredAt }: ScorePanelP
             </>
           ) : (
             <>
-              <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: tone.color }}>
-                <span className="h-2 w-2 rounded-full" style={{ background: tone.color }} aria-hidden />
-                {tone.label} · <span className="font-medium text-ink-2">{tone.hint}</span>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-semibold" style={{ color: tone.color, background: `color-mix(in srgb, ${tone.color} 14%, transparent)` }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone.color }} aria-hidden />{tone.label}
+                </span>
+                <span className="text-ink-3">{tone.hint}</span>
               </p>
               {reason?.summary && <p className="mt-1.5 text-[14px] leading-snug text-ink">{reason.summary}</p>}
             </>

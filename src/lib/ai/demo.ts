@@ -137,8 +137,9 @@ export function demoScore(lead: LeadForAi, seller: SellerProfile, activities: Ac
 
   const pos = sorted.filter((f) => f.impact === "+").map((f) => f.label.toLowerCase());
   const neg = sorted.filter((f) => f.impact === "-").map((f) => f.label.toLowerCase());
-  const verdict = score >= 75 ? "Da contattare subito" : score >= 55 ? "Buon potenziale" : score >= 40 ? "Da approfondire" : "Bassa priorità";
-  const summary = `${verdict}: ${pos.length ? pos.slice(0, 2).join(" e ") : "pochi segnali positivi"}${neg.length ? `, ma ${neg[0]}` : ""}.`;
+  const summary = pos.length
+    ? `${capitalize(pos.slice(0, 2).join(" e "))}${neg.length ? `, ma ${neg[0]}` : ""}.`
+    : `Pochi segnali positivi${neg.length ? `: ${neg.slice(0, 2).join(" e ")}` : ""}.`;
 
   return { score, summary, factors: sorted.map(({ label, impact, detail }) => ({ label, impact, detail })) };
 }
@@ -406,13 +407,15 @@ export function demoAnswerPrioritize(leads: DemoLeadRow[], due: DemoFollowups, s
     seen.add(f.leadId);
     lines.push(`${++n}. **${f.name}** — follow-up scaduto${f.date ? ` dal ${fmtDay(f.date)}` : ""} (${f.stage}). ${f.hasPhone ? "Chiamalo stamattina." : "Non hai il numero: passa di persona."}`);
   }
-  for (const l of leads) {
+  const boost: Record<string, number> = { negotiation: 25, qualified: 15, contacted: 5 };
+  const ranked = [...leads].sort((a, b) => (b.score ?? 45) + (boost[b.stage] ?? 0) - ((a.score ?? 45) + (boost[a.stage] ?? 0)));
+  for (const l of ranked) {
     if (n >= 5 || seen.has(l.id)) continue;
     seen.add(l.id);
     const why = l.score != null && l.score >= 75 ? `punteggio alto (${l.score})` : l.stage === "negotiation" ? "trattativa aperta" : l.stage === "qualified" ? "già qualificato" : l.score != null ? `punteggio ${l.score}` : "ancora da valutare";
     lines.push(`${++n}. **${l.name}**${l.category ? ` · ${l.category}` : ""}${l.city ? `, ${l.city}` : ""} — ${why}, fase ${l.stageLabel ?? stageLabel(l.stage)}.`);
   }
-  lines.push("", "**Consiglio:** concentra le chiamate tra le 10 e le 11:30, prima del pranzo. Per i lead senza punteggio usa **Valuta** nella scheda cliente: così l'ordine diventa più preciso.");
+  lines.push("", `**Consiglio:** concentra le chiamate tra le 10 e le 11:30, prima del pranzo.${leads.some((l) => l.score == null) ? " Per i clienti senza punteggio usa **Valuta** nella scheda: così l'ordine diventa più preciso." : ""}`);
   if (due.openTasks.length) lines.push("", `Hai anche ${due.openTasks.length} ${due.openTasks.length === 1 ? "promemoria aperto" : "promemoria aperti"}: chiedimi «cosa ho in scadenza?» per vederli.`);
   return lines.join("\n");
 }
@@ -429,9 +432,9 @@ export function demoAnswerFollowups(due: DemoFollowups) {
 export function demoAnswerEmail(seller: SellerProfile, lead: { name: string; category: string | null; city: string | null; contactName: string | null } | null, target: string | null) {
   const name = lead?.name ?? target ?? "[Nome attività]";
   const contact = lead?.contactName ? `Gentile ${lead.contactName},` : "Buongiorno,";
-  const items = productItems(seller.products);
-  const what = items.length ? items.slice(0, 2).join(" e ") : seller.sector?.toLowerCase() ?? "i nostri prodotti";
-  const cat = lead?.category?.toLowerCase();
+  const fam = familyOf(lead?.category) ?? familyOf(lead?.name);
+  const peers = fam ? `attività di ${FAMILIES[fam].label} come la vostra` : "attività come la vostra";
+  const offer = seller.products ? lower(seller.products.replace(/\s+/g, " ").trim().replace(/[.;]$/, "")) : null;
   return [
     `Ecco una bozza di primo contatto per **${name}**, ${seller.tone ? `con tono ${seller.tone.toLowerCase()}` : "pronta da inviare"}:`,
     "",
@@ -439,15 +442,15 @@ export function demoAnswerEmail(seller: SellerProfile, lead: { name: string; cat
     "",
     contact,
     "",
-    `mi chiamo ${seller.name}${seller.company ? ` e seguo ${seller.company}` : ""}${seller.territory ? ` in ${seller.territory}` : ""}. Lavoro ogni giorno con ${cat ? `${cat} come la vostra` : "attività come la vostra"} e mi occupo di ${what}.`,
+    `mi chiamo ${seller.name}${seller.company ? ` e seguo ${seller.company}` : ""}${seller.territory ? ` in ${seller.territory}` : ""}. Lavoro ogni giorno con ${peers}${seller.sector ? ` e mi occupo di ${lower(seller.sector)}` : ""}.`,
     "",
-    `Le scrivo perché credo di poterle offrire qualcosa di concreto: ${firstSentence(seller.products, 160) || "condizioni chiare, assistenza rapida e un referente sempre raggiungibile"}.`,
+    `Le scrivo perché credo di poterle offrire qualcosa di concreto${offer ? `: ${offer}` : ": condizioni chiare, assistenza rapida e un referente sempre raggiungibile"}.`,
     "",
-    "Le propongo un incontro di 15 minuti nel suo locale, nel giorno e nell'orario che preferisce: le porto qualche campione e valutiamo insieme se ha senso.",
+    "Le propongo un incontro di 15 minuti da voi, nel giorno e nell'orario che preferisce: porto qualche campione e valutiamo insieme se ha senso.",
     "",
     "Grazie per l'attenzione, resto a disposizione.",
     "",
-    `${seller.name}${seller.company ? `\n${seller.company}` : ""}\n[Telefono]`,
+    `${seller.name}${seller.company ? `  \n${seller.company}` : ""}  \n[Telefono]`,
     "",
     "---",
     "**Perché funziona:** è breve, parla del suo lavoro prima che del tuo, chiude con una richiesta piccola e precisa. Se non risponde, richiama dopo 3 giorni lavorativi.",

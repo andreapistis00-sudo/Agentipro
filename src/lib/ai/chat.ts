@@ -280,8 +280,9 @@ async function runDemo({ user, conversation, message, emit, signal }: RunArgs): 
     }
     case "note": {
       const type = intent.due ? "task" : "note";
-      const content = intent.content.replace(/^(per favore\s+)?(segna(mi)?|annota(mi)?|ricordami( di)?|registra)\s*(che\s*)?/i, "").trim() || intent.content;
-      const done = await tool("add_activity", { leadId: lead!.id, type, content: content.charAt(0).toUpperCase() + content.slice(1), ...(intent.due && { dueAt: intent.due }) });
+      const stripped = intent.content.replace(/^(per favore\s+)?(segna(mi)?|annota(mi)?|ricordami( di)?|registra)\s*(che\s*)?/i, "").trim() || intent.content;
+      const content = stripped.charAt(0).toUpperCase() + stripped.slice(1);
+      const done = await tool("add_activity", { leadId: lead!.id, type, content, ...(intent.due && { dueAt: intent.due }) });
       answer = done
         ? `Fatto: ho registrato ${type === "task" ? "un **promemoria**" : "una **nota**"} su **${lead!.name}**${intent.due ? ` con scadenza **${new Date(`${intent.due}T12:00:00Z`).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })}**` : ""}.\n\n> ${content}\n\nLo trovi nello storico della scheda cliente${type === "task" ? " e tra i follow-up di Oggi" : ""}.`
         : "Non sono riuscito a registrare l'attività. Riprova dalla scheda cliente.";

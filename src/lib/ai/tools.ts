@@ -148,7 +148,9 @@ function fail(tool: string, label: string, message: string, write = false): Tool
   return { content: JSON.stringify({ error: message }), isError: true, action: { tool, label, write, ok: false } };
 }
 
-const ACTIVITY_LABEL: Record<string, string> = { note: "Nota", task: "Promemoria", call: "Chiamata", email: "Email", meeting: "Visita" };
+const ACTIVITY_DONE: Record<string, string> = {
+  note: "Nota aggiunta", task: "Promemoria aggiunto", call: "Chiamata registrata", email: "Email registrata", meeting: "Visita registrata",
+};
 
 /**
  * Esegue un tool CRM per l'utente indicato. Non lancia mai: gli errori tornano come risultato is_error
@@ -271,13 +273,13 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
         if (p.data.type === "task" && dueAt && (!lead.nextFollowUp || dueAt < lead.nextFollowUp)) {
           await db.lead.updateMany({ where: { id: lead.id, userId }, data: { nextFollowUp: dueAt } });
         }
-        const what = ACTIVITY_LABEL[p.data.type] ?? "Attività";
+        const what = ACTIVITY_DONE[p.data.type] ?? "Attività registrata";
         return {
           content: JSON.stringify({ ok: true, activity: { ...activity, dueAt: day(activity.dueAt) }, leadName: lead.name }),
           isError: false,
           action: {
             tool: name, write: true, ok: true, leadId: lead.id,
-            label: `${what} aggiunta a ${lead.name}${dueAt ? ` · scadenza ${dueAt.toLocaleDateString("it-IT", { day: "numeric", month: "short", timeZone: "Europe/Rome" })}` : ""}`,
+            label: `${what} su ${lead.name}${dueAt ? ` · scadenza ${dueAt.toLocaleDateString("it-IT", { day: "numeric", month: "short", timeZone: "Europe/Rome" })}` : ""}`,
           },
         };
       }
