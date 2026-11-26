@@ -55,4 +55,13 @@ Apri http://localhost:3000. Con il seed puoi accedere come `demo@agentipro.it` /
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Prisma + SQLite · Anthropic SDK. I dettagli sono in [`docs/architecture.md`](docs/architecture.md).
 
-Per la produzione su più istanze conviene passare a PostgreSQL: basta cambiare `provider` in `prisma/schema.prisma` e `DATABASE_URL`.
+## Test
+
+- `npm test`: 76 test unitari (ricerca, AI con client Anthropic simulato, tool del CRM).
+- `npm run test:e2e`: 30 scenari Playwright su desktop e mobile (registrazione, ricerca, import, scheda cliente, pipeline, assistente, isolamento tra utenti, export). Avviano da soli un server di produzione con un database dedicato, in modalità demo.
+
+## Note per la produzione
+
+- Imposta `AUTH_SECRET`, `APP_URL` e, per l'AI reale, `ANTHROPIC_API_KEY`.
+- I limiti di frequenza (login, ricerca, AI) sono in memoria: valgono per una singola istanza. Per IP leggono `X-Forwarded-For`, quindi metti l'app dietro un proxy che imposti quell'header (Vercel, Nginx, Cloudflare…).
+- Per la produzione su più istanze conviene passare a PostgreSQL: basta cambiare `provider` in `prisma/schema.prisma` e `DATABASE_URL`.

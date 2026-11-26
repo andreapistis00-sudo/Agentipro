@@ -46,7 +46,9 @@ test.describe("Pipeline", () => {
     await page.mouse.down();
     await page.mouse.move(from.x + from.width / 2 + 20, from.y + from.height / 2 + 5, { steps: 5 });
     await page.mouse.move(to.x + to.width / 2, to.y + 120, { steps: 25 });
+    const saved = page.waitForResponse((r) => r.url().endsWith("/api/pipeline") && r.request().method() === "POST");
     await page.mouse.up();
+    expect((await saved).ok()).toBe(true);
     await expect(page.getByRole("region", { name: "Qualificato: 1 clienti" }).getByText("Cliente Drag")).toBeVisible();
 
     await page.reload();

@@ -34,8 +34,8 @@ test.describe("Assistente", () => {
     await expect(page.getByPlaceholder("Chiedi qualcosa su Enoteca Verdi…")).toBeVisible();
     await page.getByLabel("Scrivi un messaggio").fill("Come lo approccio?");
     await page.getByRole("button", { name: "Invia" }).click();
-    await expect(page.getByText("Enoteca Verdi").nth(1)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("button", { name: "Invia" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Invia" })).toBeVisible({ timeout: 30_000 }); // streaming concluso
+    await expect(page.getByRole("region", { name: "Chat" }).getByText("Enoteca Verdi").filter({ visible: true }).first()).toBeVisible();
     await expect(page).toHaveURL(/[?&]c=/);
   });
 

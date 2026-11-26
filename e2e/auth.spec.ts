@@ -1,4 +1,4 @@
-import { anon as test, expect, uniqueUser, isMobile } from "./helpers";
+import { anon as test, expect, uniqueUser, isMobile, registerViaApi } from "./helpers";
 import { test as authed } from "./helpers";
 
 test.describe("Autenticazione", () => {
@@ -30,9 +30,9 @@ test.describe("Autenticazione", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(u.name.split(" ")[0]);
   });
 
-  test("registrazione con email già usata mostra errore", async ({ page, request }) => {
+  test("registrazione con email già usata mostra errore", async ({ page, baseURL }) => {
     const u = uniqueUser("dup");
-    expect((await request.post("/api/auth/register", { data: u })).status()).toBe(200);
+    await registerViaApi(baseURL!, u);
     await page.goto("/register");
     await page.getByLabel("Nome e cognome").fill(u.name);
     await page.getByLabel("Email").fill(u.email);
@@ -41,9 +41,9 @@ test.describe("Autenticazione", () => {
     await expect(page.locator("form [role=alert]")).toContainText("Esiste già un account");
   });
 
-  test("credenziali errate mostrano un errore", async ({ page, request }) => {
+  test("credenziali errate mostrano un errore", async ({ page, baseURL }) => {
     const u = uniqueUser("bad");
-    await request.post("/api/auth/register", { data: u });
+    await registerViaApi(baseURL!, u);
     await page.goto("/login");
     await page.getByLabel("Email").fill(u.email);
     await page.getByLabel("Password").fill("password-sbagliata");
@@ -64,5 +64,20 @@ authed.describe("Sessione", () => {
   authed("utente autenticato su /login viene portato a /app", async ({ page }) => {
     await page.goto("/login");
     await expect(page).toHaveURL(/\/app$/);
+  });
+});
+
+test.describe("Forza bruta", () => {
+  test("dopo troppi tentativi falliti il login è bloccato (429)", async ({ playwright, baseURL }) => {
+    const u = uniqueUser("brute");
+    await registerViaApi(baseURL!, u);
+    const ctx = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": `10.${Math.floor(Math.random() * 250)}.9.9` } });
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) statuses.push((await ctx.post("/api/auth/login", { data: { email: u.email, password: "sbagliata" + i } })).status());
+    expect(statuses.slice(0, 10).every((s) => s === 401)).toBe(true);
+    expect(statuses.slice(10)).toEqual([429, 429]);
+    // anche con la password giusta resta bloccato nella finestra
+    expect((await ctx.post("/api/auth/login", { data: { email: u.email, password: u.password } })).status()).toBe(429);
+    await ctx.dispose();
   });
 });

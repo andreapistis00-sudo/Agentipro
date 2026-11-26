@@ -11,7 +11,9 @@ export function uniqueUser(label = "u"): TestUser {
 
 /** Registra un utente via API e restituisce il cookie di sessione. */
 export async function registerViaApi(baseURL: string, user: TestUser) {
-  const ctx = await pwRequest.newContext({ baseURL });
+  // La registrazione ha un rate limit per IP (50/h): ogni utente di test usa un IP fittizio distinto via X-Forwarded-For.
+  const ip = `10.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}.${(counter % 250) + 1}`;
+  const ctx = await pwRequest.newContext({ baseURL, extraHTTPHeaders: { "x-forwarded-for": ip } });
   const res = await ctx.post("/api/auth/register", { data: { name: user.name, email: user.email, password: user.password } });
   if (!res.ok()) throw new Error(`register fallita: ${res.status()} ${await res.text()}`);
   const setCookie = res.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value).find((v) => v.startsWith("ap_session="));
