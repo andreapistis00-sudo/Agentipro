@@ -60,6 +60,14 @@ Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Prisma +
 - `npm test`: 76 test unitari (ricerca, AI con client Anthropic simulato, tool del CRM).
 - `npm run test:e2e`: 30 scenari Playwright su desktop e mobile (registrazione, ricerca, import, scheda cliente, pipeline, assistente, isolamento tra utenti, export). Avviano da soli un server di produzione con un database dedicato, in modalità demo.
 
+## Pubblicare su Railway
+
+1. Su [railway.com](https://railway.com): **New Project → Deploy from GitHub repo** → scegli questa repo (branch con il codice).
+2. Nel servizio: **Settings → Volumes → Add Volume** con mount path `/data` (qui vive il database SQLite).
+3. **Variables**: `DATABASE_URL=file:/data/agentipro.db`, `AUTH_SECRET=<stringa casuale lunga>`, `APP_URL=https://<il-tuo-dominio>.up.railway.app` e, per l'AI reale, `ANTHROPIC_API_KEY`.
+4. **Settings → Networking → Generate Domain**. Build e avvio usano `railway.json`: il database si crea da solo al primo avvio.
+5. Facoltativo, per l'utente demo: dalla CLI di Railway `railway run npm run db:seed`, oppure registrati dalla pagina `/register`.
+
 ## Note per la produzione
 
 - Imposta `AUTH_SECRET`, `APP_URL` e, per l'AI reale, `ANTHROPIC_API_KEY`.
