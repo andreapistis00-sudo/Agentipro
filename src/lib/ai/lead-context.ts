@@ -30,7 +30,10 @@ export function inTerritory(lead: Pick<Lead, "city" | "address">, territory: str
   const stop = new Set(["e", "provincia", "prov", "di", "del", "della", "zona", "area", "citta", "hinterland", "dintorni", "comuni", "limitrofi", "tutta", "intera", "nord", "sud", "est", "ovest", "centro"]);
   const words = t.split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !stop.has(w));
   if (!words.length) return null;
-  return words.some((w) => place.includes(w));
+  if (words.some((w) => place.includes(w))) return true;
+  // "Milano e provincia", "hinterland", una regione…: senza un elenco di comuni non si può escludere.
+  if (/provincia|prov\b|hinterland|dintorni|limitrofi|area|zona|regione|lombardia|piemonte|veneto|emilia|toscana|lazio|campania|puglia|sicilia|liguria|marche|umbria|abruzzo|calabria|sardegna|friuli|trentino|nord|sud|centro/.test(t)) return null;
+  return false;
 }
 
 /** Scheda testuale del lead per i prompt. */

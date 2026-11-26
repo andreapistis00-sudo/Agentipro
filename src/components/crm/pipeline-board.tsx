@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import {
   DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, closestCorners, useDroppable, useSensor, useSensors,
-  type Announcements, type DragEndEvent, type DragOverEvent, type DragStartEvent, type UniqueIdentifier,
+  KeyboardCode, type Announcements, type KeyboardCoordinateGetter, type DragEndEvent, type DragOverEvent, type DragStartEvent, type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -20,6 +20,26 @@ type Columns = Record<StageId, PipelineCard[]>;
 type Move = { leadId: string; stage: StageId; index: number; from: StageId };
 
 const STAGE_SET = new Set<string>(STAGES.map((s) => s.id));
+
+/**
+ * Tastiera: su/giù riordina nella colonna (comportamento standard di dnd-kit),
+ * sinistra/destra salta alla colonna adiacente, in cima.
+ */
+const boardKeyboardCoordinates: KeyboardCoordinateGetter = (event, args) => {
+  const { active, over, droppableRects, droppableContainers } = args.context;
+  if (event.code !== KeyboardCode.Left && event.code !== KeyboardCode.Right) return sortableKeyboardCoordinates(event, args);
+  event.preventDefault();
+  if (!active) return undefined;
+  const ref = over?.id ?? active.id;
+  const current =
+    STAGE_SET.has(String(ref)) ? String(ref) : (droppableContainers.get(ref)?.data.current?.sortable?.containerId as string | undefined);
+  const idx = STAGES.findIndex((s) => s.id === current);
+  const next = STAGES[idx + (event.code === KeyboardCode.Right ? 1 : -1)];
+  if (idx < 0 || !next) return undefined;
+  const rect = droppableRects.get(next.id);
+  if (!rect) return undefined;
+  return { x: rect.left + 8, y: rect.top + 8 };
+};
 
 export function groupByStage(cards: PipelineCard[]): Columns {
   const cols = Object.fromEntries(STAGES.map((s) => [s.id, [] as PipelineCard[]])) as unknown as Columns;
@@ -40,7 +60,7 @@ export function PipelineBoard({ cards }: { cards: PipelineCard[] }) {
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: boardKeyboardCoordinates }),
   );
 
   const findContainer = (id: UniqueIdentifier, cols = columns): StageId | null => {

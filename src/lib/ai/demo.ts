@@ -278,23 +278,25 @@ export function demoBriefing(lead: LeadForAi, activities: ActivityForAi[], selle
     `Nel CRM è in fase «${stageLabel(lead.stage)}»${lead.contactName ? `, referente ${lead.contactName}${lead.contactRole ? ` (${lead.contactRole})` : ""}` : ""}${channels.length ? `; recapiti: ${channels.join(", ")}` : "; nessun recapito salvato"}.`,
   ].join(" ");
 
-  const whyNow =
+  const overdueFollowUp = lead.nextFollowUp && new Date(lead.nextFollowUp).getTime() < now.getTime() && lead.stage !== "won" && lead.stage !== "lost";
+  const whyNowBase =
     lead.stage === "negotiation" ? "C'è una trattativa aperta: ogni giorno senza risposta raffredda il cliente, questa visita serve a chiudere."
     : lead.stage === "qualified" ? "Ha già mostrato interesse: è il momento di passare dalla conversazione a una proposta concreta."
     : lastContact ? `L'ultimo contatto risale al ${fmtDay(lastContact.createdAt)}: riprendere il filo adesso mantiene viva la relazione.`
     : lead.rating != null && (lead.reviewsCount ?? 0) >= 100 ? `Con ${lead.reviewsCount} recensioni ha un passaggio importante: un fornitore affidabile per lui vale molto, e la concorrenza lo sa.`
     : `È un cliente in target ancora mai contattato: arrivare prima dei concorrenti${seller.territory ? ` in ${seller.territory}` : ""} è un vantaggio.`;
+  const whyNow = overdueFollowUp ? `Il follow-up previsto per ${fmtDay(lead.nextFollowUp!)} è già passato. ${whyNowBase}` : whyNowBase;
 
   const talkingPoints = [
     `Parti da ciò che conta per una ${cat}: ${pb.pains[0]}.`,
-    items.length ? `Presenta ${items.slice(0, 2).join(" e ")}${seller.company ? ` di ${seller.company}` : ""}, collegandoli a ${pb.pains[1]}.` : `Collega la tua offerta a ${pb.pains[1]}.`,
+    items.length ? `Presenta ${items.slice(0, 2).map((x, i) => (i ? lower(x) : x)).join(" e ")}${seller.company ? ` di ${seller.company}` : ""}, collegandoli a ${pb.pains[1]}.` : `Collega la tua offerta a ${pb.pains[1]}.`,
     reviews ? `Usa le recensioni (${reviews}) come apertura: complimentati per un punto di forza concreto prima di proporre.` : `Chiedi come si fanno conoscere: senza recensioni online il passaparola è tutto, e tu puoi aiutarli.`,
     lastContact ? `Riprendi l'ultimo contatto: «${firstSentence(lastContact.content, 110)}».` : `Racconta in 30 secondi un caso di un cliente simile${seller.territory ? ` nella tua zona` : ""} con un risultato misurabile.`,
     pb.moment,
   ];
 
   const offerToPropose = items.length
-    ? `Proponi una prova senza impegno di ${offerCore}${items[1] ? ` (eventualmente con ${items[1]})` : ""}: rischio basso per lui, ti permette di dimostrare il valore sul campo prima di parlare di listino.`
+    ? `Proponi una prova senza impegno di ${lower(offerCore)}${items[1] ? ` (eventualmente con ${lower(items[1])})` : ""}: rischio basso per il cliente, e ti permette di dimostrare il valore sul campo prima di parlare di listino.`
     : `Proponi un ordine di prova limitato o una dimostrazione gratuita: abbassa la barriera d'ingresso e ti dà un motivo per tornare.`;
 
   const openingLine = lastContact
@@ -303,7 +305,11 @@ export function demoBriefing(lead: LeadForAi, activities: ActivityForAi[], selle
       ? `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}. Ho letto ottime recensioni su di voi e lavoro con diverse ${cat === "attività" ? "attività" : cat} della zona: posso rubarle due minuti?`
       : `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}: lavoro con altre attività come la vostra${where} e ho un'idea che potrebbe interessarvi. È lei il titolare?`;
 
-  const questionsToAsk = [...pb.questions, items.length ? `Oggi come gestite ${offerCore.toLowerCase()}, e cosa cambiereste?` : "Cosa cambiereste del vostro fornitore attuale?"].slice(0, 4);
+  const isOwner = /titolar|proprietar|socio/.test(norm(lead.contactRole));
+  const questionsToAsk = [
+    ...pb.questions.filter((q) => !(isOwner && /chi decide|chi prende|chi segue|chi si occupa/i.test(q))),
+    items.length ? `Oggi come gestite ${lower(offerCore)}, e cosa cambiereste?` : "Cosa cambiereste del vostro fornitore attuale?",
+  ].slice(0, 4);
 
   const likelyObjections = [...pb.objections, FAMILY_PLAYBOOK.generic.objections[1]].slice(0, 3);
 
@@ -318,7 +324,6 @@ export function demoBriefing(lead: LeadForAi, activities: ActivityForAi[], selle
   const q = encodeURIComponent([lead.name, lead.address, lead.city].filter(Boolean).join(", "));
   sources.push({ title: `${lead.name} su Google Maps`, url: `https://www.google.com/maps/search/?api=1&query=${q}` });
 
-  void now;
   return { snapshot, whyNow, talkingPoints, likelyObjections, offerToPropose, openingLine, questionsToAsk, nextStep, sources, demo: true };
 }
 
@@ -550,6 +555,9 @@ export function demoTitle(message: string) {
 
 /* ---------------------------------- util ---------------------------------- */
 
+function lower(s: string) {
+  return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+}
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
