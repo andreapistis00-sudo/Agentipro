@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth";
 import { scoreLeads } from "@/lib/ai/score";
 import { ScoreRequestSchema } from "@/lib/ai/schemas";
+import { isAiDemo } from "@/lib/ai";
+import { aiRateLimit } from "@/lib/ai/client";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -16,6 +18,8 @@ export async function POST(req: Request) {
   const parsed = ScoreRequestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dati non validi" }, { status: 400 });
 
+  const limited = aiRateLimit(user.id, "score", isAiDemo());
+  if (limited) return limited;
   const out = await scoreLeads(user, parsed.data.leadIds);
   if (!out.results.length && out.errors?.length) {
     const notFound = out.errors.every((e) => e.error === "Cliente non trovato");

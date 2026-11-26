@@ -9,6 +9,9 @@ export function Markdown({ children, className }: { children: string; className?
     <div className={cn("prose-ai", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        // Niente immagini remote: un contenuto web iniettato potrebbe usarle per esfiltrare dati (URL con parametri).
+        disallowedElements={["img"]}
+        unwrapDisallowed
         components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> }}
       >
         {children}

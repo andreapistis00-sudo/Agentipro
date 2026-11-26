@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "@/lib/session";
+import { clientIp, rateLimit, tooMany } from "@/lib/search/rate-limit";
 
 const Body = z.object({
   name: z.string().trim().min(2, "Inserisci il tuo nome").max(80),
@@ -11,6 +12,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
+  const limit = rateLimit(`register:${clientIp(req)}`, 50, 60 * 60_000);
+  if (!limit.ok) return tooMany(limit.retryAfterSec, `Troppe registrazioni da questa rete. Riprova tra ${limit.retryAfterSec} secondi.`);
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dati non validi" }, { status: 400 });

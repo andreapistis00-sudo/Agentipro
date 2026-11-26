@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Conversation, Message } from "@prisma/client";
 import { db } from "@/lib/db";
 import { MODEL_FAST, MODEL_SMART, anthropic, isAiDemo } from "@/lib/ai";
-import { SMART_BETA, WEB_SEARCH_TOOL, sleep } from "./client";
+import { CHAT_BETA, WEB_SEARCH_TOOL, echoContent, sleep } from "./client";
 import { SourceCollector } from "./briefing";
 import {
   chunkText, demoAnswerEmail, demoAnswerFollowups, demoAnswerGeneric, demoAnswerLeadAdvice, demoAnswerObjection,
@@ -17,7 +17,12 @@ import { CRM_TOOLS, CRM_TOOL_NAMES, executeCrmTool, toolStatusLabel, type ToolEx
 
 const MAX_ITERATIONS = 8;
 const MAX_STREAM_RETRIES = 2;
-const HISTORY_LIMIT = 40;
+/**
+ * Righe (messaggi utente + risposte) rigiocate al modello. Entro il limite la cronologia è append-only;
+ * oltre, la finestra scorre e cambia il prefisso: in quel caso si tolgono tutti i blocchi di thinking
+ * (rimuoverli tutti è consentito) invece di rispedire blocchi legati a un prefisso che non esiste più.
+ */
+export const HISTORY_LIMIT = 200;
 
 type Emit = (e: ChatEvent) => void;
 type ApiMessage = Anthropic.Beta.BetaMessageParam;
@@ -37,23 +42,49 @@ function parseRaw<T>(raw: string | null): T | null {
   }
 }
 
-/** Ricostruisce la cronologia API dai messaggi salvati, rispedendo invariati i content block (thinking inclusi). */
-export function buildHistory(rows: Pick<Message, "role" | "content" | "raw">[]): ApiMessage[] {
-  const out: ApiMessage[] = [];
-  for (const m of rows) {
+const isThinking = (b: { type: string }) => b.type === "thinking" || b.type === "redacted_thinking";
+
+/** Toglie i blocchi di thinking da un messaggio (usato solo quando la finestra della cronologia scorre). */
+function withoutThinking(m: ApiMessage): ApiMessage | null {
+  if (m.role !== "assistant" || typeof m.content === "string") return m;
+  const content = m.content.filter((b) => !isThinking(b));
+  return content.length ? { ...m, content } : null;
+}
+
+/**
+ * Ricostruisce la cronologia API dai messaggi salvati, rispedendo invariati i content block (thinking inclusi):
+ * la cronologia è append-only, quindi i blocchi di thinking restano validi tra un turno e l'altro.
+ * - I turni rifiutati (stop_reason "refusal") vengono esclusi insieme al messaggio utente che li ha causati,
+ *   sempre allo stesso modo, così il prefisso resta stabile e la richiesta rifiutata non viene ripetuta.
+ * - Con `stripThinking` (finestra scorrevole oltre HISTORY_LIMIT) si tolgono tutti i blocchi di thinking.
+ */
+export function buildHistory(rows: Pick<Message, "role" | "content" | "raw">[], opts: { stripThinking?: boolean } = {}): ApiMessage[] {
+  let out: ApiMessage[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const m = rows[i];
     if (m.role === "user") {
+      const next = rows[i + 1];
+      if (next?.role === "assistant" && parseRaw<AssistantRaw>(next.raw)?.stopped === "refusal") {
+        i++; // salta domanda e rifiuto
+        continue;
+      }
       const raw = parseRaw<UserRaw>(m.raw);
       out.push({ role: "user", content: raw?.api ?? m.content });
     } else {
       const raw = parseRaw<AssistantRaw>(m.raw);
+      if (raw?.stopped === "refusal") continue;
       if (raw?.messages?.length) out.push(...raw.messages);
       else if (m.content.trim()) out.push({ role: "assistant", content: m.content });
     }
   }
-  // La cronologia deve iniziare con un messaggio utente.
-  while (out.length && out[0].role !== "user") out.shift();
+  if (opts.stripThinking) out = out.map(withoutThinking).filter((m): m is ApiMessage => m !== null);
+  // La cronologia deve iniziare con un messaggio utente "vero" (non con tool_result orfani).
+  const orphan = (m: ApiMessage) => m.role !== "user" || (Array.isArray(m.content) && m.content.some((b) => b.type === "tool_result"));
+  while (out.length && orphan(out[0])) out.shift();
   return out;
 }
+
+export { echoContent };
 
 type RunArgs = {
   user: SellerProfile & { id: string };
@@ -122,6 +153,7 @@ async function runLive({ user, conversation, message, emit, signal }: RunArgs, h
   let text = "";
   let stopped: MessageMeta["stopped"];
   let retries = 0;
+  let paused = false;
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     let firstDelta = true;
@@ -134,7 +166,7 @@ async function runLive({ user, conversation, message, emit, signal }: RunArgs, h
         messages: [...base, ...turn],
         output_config: { effort: "medium" },
         thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } },
-        ...SMART_BETA,
+        ...CHAT_BETA,
       },
       { signal },
     );
@@ -172,6 +204,7 @@ async function runLive({ user, conversation, message, emit, signal }: RunArgs, h
     }
 
     sources.collect(msg.content);
+    paused = false;
     if (msg.stop_reason === "refusal") {
       stopped = "refusal";
       const note = "Mi dispiace, non posso aiutarti con questa richiesta. Prova a riformularla.";
@@ -179,17 +212,22 @@ async function runLive({ user, conversation, message, emit, signal }: RunArgs, h
       text += text ? `\n\n${note}` : note;
       return { text, userApi: apiUser, raw: { v: 1, actions, sources: sources.list(20), stopped } }; // turno rifiutato: non va rigiocato
     }
-    turn.push({ role: "assistant", content: msg.content });
+    const content = echoContent(msg.content);
+    turn.push({ role: "assistant", content });
 
     // Il loop server-side (ricerca web) si è fermato: rimandiamo il turno così com'è perché riprenda.
-    if (msg.stop_reason === "pause_turn") continue;
+    if (msg.stop_reason === "pause_turn") {
+      paused = true;
+      continue;
+    }
 
-    const toolUses = msg.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    const truncated = msg.stop_reason === "max_tokens" || msg.stop_reason === "model_context_window_exceeded";
+    const toolUses = content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
     if (!toolUses.length) {
-      if (msg.stop_reason === "max_tokens") stopped = "max_tokens";
+      if (truncated) stopped = "max_tokens";
       break;
     }
-    if (msg.stop_reason === "max_tokens") {
+    if (truncated) {
       // Input del tool troncato: non eseguirlo.
       stopped = "max_tokens";
       turn.pop();
@@ -209,6 +247,10 @@ async function runLive({ user, conversation, message, emit, signal }: RunArgs, h
     turn.push({ role: "user", content: results });
     emit({ type: "status", message: null });
   }
+
+  // Iterazioni esaurite su un turno ancora in pausa: quella risposta non è mai stata rispedita, quindi
+  // non salvarla (finirebbe in mezzo alla cronologia con un server_tool_use in sospeso).
+  if (paused) turn.pop();
 
   emit({ type: "status", message: null });
   if (!text.trim()) {
@@ -327,10 +369,11 @@ export async function runChat(args: RunArgs, userMessageId: string) {
   const rows = await db.message.findMany({
     where: { conversationId: conversation.id, NOT: { id: userMessageId } },
     orderBy: { createdAt: "desc" },
-    take: HISTORY_LIMIT,
+    take: HISTORY_LIMIT + 1,
     select: { role: true, content: true, raw: true },
   });
-  const history = buildHistory(rows.reverse());
+  const windowed = rows.length > HISTORY_LIMIT;
+  const history = buildHistory(rows.slice(0, HISTORY_LIMIT).reverse(), { stripThinking: windowed });
 
   let outcome: ChatOutcome;
   try {

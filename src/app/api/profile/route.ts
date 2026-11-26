@@ -3,9 +3,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
 
-const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
+const opt = (max: number) => z.string().trim().max(max, `Testo troppo lungo (max ${max} caratteri)`).optional().transform((v) => (v ? v : null));
 const Body = z.object({
-  name: z.string().trim().min(2).max(80),
+  name: z.string().trim().min(2, "Il nome deve avere almeno 2 caratteri").max(80, "Nome troppo lungo"),
   company: opt(120),
   sector: opt(120),
   products: opt(2000),

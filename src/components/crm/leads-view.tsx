@@ -102,13 +102,15 @@ export function LeadsView({ leads, total, pages, query, tags, hasAnyLead }: {
 
   async function bulkScore() {
     setBusy("ai");
-    const res = await api<{ results?: { leadId: string; score: number }[] }>("/api/ai/score", "POST", { leadIds: [...sel] });
+    const res = await api<{ results?: { leadId: string; score: number }[]; errors?: { leadId: string; error: string }[] }>("/api/ai/score", "POST", { leadIds: [...sel] });
     setBusy(null);
-    if (!res.ok) {
-      return toast(res.status === 404 ? "La valutazione AI non è ancora disponibile." : `Valutazione non riuscita: ${res.error}`, "error");
-    }
+    if (!res.ok) return toast(`Valutazione non riuscita: ${res.error}`, "error");
     const n = res.data.results?.length ?? 0;
-    toast(n === 1 ? "1 cliente valutato" : `${n} clienti valutati`);
+    const failed = res.data.errors?.length ?? 0;
+    toast(
+      `${n === 1 ? "1 cliente valutato" : `${n} clienti valutati`}${failed ? ` · ${failed} non riusciti (${res.data.errors![0].error})` : ""}`,
+      failed ? "error" : undefined,
+    );
     setSelected(new Set());
     router.refresh();
   }

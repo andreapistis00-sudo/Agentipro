@@ -45,7 +45,7 @@ export default defineConfig({
   webServer: {
     command,
     url: `http://localhost:${PORT}/login`,
-    reuseExistingServer: false,
+    reuseExistingServer: Boolean(process.env.PW_REUSE_SERVER),
     timeout: 360_000,
     env: { ...(process.env as Record<string, string>), ...env },
     stdout: "pipe",

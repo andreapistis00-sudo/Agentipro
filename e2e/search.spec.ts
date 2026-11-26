@@ -6,7 +6,7 @@ test("cerca 'bar' a Milano, salva 3 risultati nel CRM e risultano 'Già nel CRM'
   await page.getByLabel("Dove").fill("Milano");
   await page.getByRole("search", { name: "Cerca attività" }).getByRole("button", { name: "Cerca" }).click();
 
-  const checkboxes = page.getByRole("checkbox", { name: /^Seleziona / });
+  const checkboxes = page.getByRole("checkbox", { name: /^Seleziona (?!tutti)/ });
   await expect(checkboxes.first()).toBeVisible();
   expect(await checkboxes.count()).toBeGreaterThanOrEqual(3);
 

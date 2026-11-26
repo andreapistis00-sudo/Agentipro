@@ -38,7 +38,7 @@ test.describe("Autenticazione", () => {
     await page.getByLabel("Email").fill(u.email);
     await page.getByLabel("Password").fill(u.password);
     await page.getByRole("button", { name: "Crea account gratuito" }).click();
-    await expect(page.getByRole("alert")).toContainText("Esiste già un account");
+    await expect(page.locator("form [role=alert]")).toContainText("Esiste già un account");
   });
 
   test("credenziali errate mostrano un errore", async ({ page, request }) => {
@@ -48,7 +48,7 @@ test.describe("Autenticazione", () => {
     await page.getByLabel("Email").fill(u.email);
     await page.getByLabel("Password").fill("password-sbagliata");
     await page.getByRole("button", { name: "Accedi" }).click();
-    await expect(page.getByRole("alert")).toHaveText("Email o password errati");
+    await expect(page.locator("form [role=alert]")).toHaveText("Email o password errati");
     await expect(page).toHaveURL(/\/login/);
   });
 

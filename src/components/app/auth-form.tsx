@@ -19,12 +19,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
     setLoading(false);
+    if (!res) return setError("Connessione non disponibile. Riprova.");
     if (!res.ok) return setError(data.error ?? "Qualcosa è andato storto");
     const next = params.get("next");
-    router.push(mode === "register" ? "/app/settings?welcome=1" : next?.startsWith("/app") ? next : "/app");
+    // Solo percorsi interni all'app (niente "//host" o URL assoluti).
+    const safeNext = next && /^\/app(?:[/?#]|$)/.test(next) ? next : "/app";
+    router.push(mode === "register" ? "/app/settings?welcome=1" : safeNext);
     router.refresh();
   }
 

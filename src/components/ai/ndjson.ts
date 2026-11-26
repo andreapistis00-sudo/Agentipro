@@ -12,33 +12,36 @@ export async function postNdjson<E>(url: string, body: unknown, onEvent: (e: E) 
     const data = await res.json().catch(() => null);
     throw new Error(data?.error ?? (res.status === 401 ? "Sessione scaduta: accedi di nuovo." : "Errore di rete. Riprova."));
   }
+  // Solo il parsing è protetto: le eccezioni lanciate da `onEvent` (es. evento "error") devono risalire al chiamante.
+  const emit = (line: string) => {
+    let event: E;
+    try {
+      event = JSON.parse(line) as E;
+    } catch {
+      return; // riga incompleta o non valida: ignorata
+    }
+    onEvent(event);
+  };
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let nl: number;
-    while ((nl = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      if (line) {
-        try {
-          onEvent(JSON.parse(line) as E);
-        } catch {
-          /* riga incompleta o non valida: ignorata */
-        }
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line) emit(line);
       }
     }
-  }
-  const rest = buf.trim();
-  if (rest) {
-    try {
-      onEvent(JSON.parse(rest) as E);
-    } catch {
-      /* ignorata */
-    }
+    const rest = buf.trim();
+    if (rest) emit(rest);
+  } catch (err) {
+    reader.cancel().catch(() => undefined);
+    throw err;
   }
 }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { STAGE_IDS, stageLabel } from "@/lib/utils";
+import { addDays, dayKey, romeMidnight } from "@/lib/crm/format";
 import type { ChatAction } from "./schemas";
 
 /* --------------------------------- Schemi input --------------------------------- */
@@ -134,7 +135,8 @@ export function toolStatusLabel(name: string) {
 
 export type ToolExecution = { content: string; isError: boolean; action: ChatAction };
 
-const day = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : null);
+/** Giorno "YYYY-MM-DD" nel fuso italiano (come nel resto del CRM). */
+const day = (d: Date | null | undefined) => (d ? dayKey(d) : null);
 
 /** Interpreta "YYYY-MM-DD" (salvata alle 12:00 UTC, come nel CRM) o una data ISO. */
 export function parseDue(s: string | undefined): Date | null {
@@ -226,7 +228,9 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
         const p = DueFollowupsInput.safeParse(input ?? {});
         if (!p.success) return fail(name, "Follow-up", "Input non valido");
         const days = p.data.days ?? 7;
-        const until = new Date(now.getTime() + days * 86400000);
+        const todayKey = dayKey(now);
+        // Fino alla fine del giorno italiano "oggi + days" (days = 0 → tutto oggi).
+        const until = new Date(romeMidnight(addDays(todayKey, days + 1)).getTime() - 1);
         const [leads, tasks] = await Promise.all([
           db.lead.findMany({
             where: { userId, nextFollowUp: { lte: until }, stage: { notIn: ["won", "lost"] } },
@@ -241,7 +245,6 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
             select: { id: true, type: true, content: true, dueAt: true, lead: { select: { id: true, name: true } } },
           }),
         ]);
-        const todayKey = now.toISOString().slice(0, 10);
         return {
           content: JSON.stringify({
             today: todayKey,
@@ -266,7 +269,8 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
         const dueAt = parseDue(p.data.dueAt);
         if (p.data.dueAt && !dueAt) return fail(name, "Registrazione attività", "Data di scadenza non valida: usa YYYY-MM-DD", true);
         const activity = await db.activity.create({
-          data: { userId, leadId: lead.id, type: p.data.type, content: p.data.content, dueAt },
+          // Stessa regola delle API del CRM: senza scadenza (e se non è un promemoria) l'attività nasce già fatta.
+          data: { userId, leadId: lead.id, type: p.data.type, content: p.data.content, dueAt, done: !(p.data.type === "task" || dueAt) },
           select: { id: true, type: true, content: true, dueAt: true },
         });
         // Un promemoria più vicino del follow-up attuale diventa il prossimo follow-up del cliente.
@@ -308,7 +312,7 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
           }),
           db.activity.create({
             data: {
-              userId, leadId: lead.id, type: "stage",
+              userId, leadId: lead.id, type: "stage", done: true,
               content: `Fase: ${stageLabel(lead.stage)} → ${stageLabel(p.data.stage)}${p.data.stage === "lost" && p.data.lostReason ? ` (${p.data.lostReason})` : ""} · dall'assistente`,
             },
           }),

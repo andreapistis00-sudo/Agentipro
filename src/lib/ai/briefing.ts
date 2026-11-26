@@ -9,7 +9,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { db } from "@/lib/db";
 import { MODEL_SMART, anthropic, isAiDemo } from "@/lib/ai";
-import { RefusalError, SMART_BETA, WEB_SEARCH_TOOL, sleep } from "./client";
+import { RefusalError, SMART_BETA, WEB_SEARCH_TOOL, echoContent, sleep } from "./client";
 import { demoBriefing } from "./demo";
 import { leadToText, todayIt, type SellerProfile } from "./lead-context";
 import { briefingResearchSystemPrompt, briefingWriteSystemPrompt, briefingWriteUserPrompt } from "./prompts";
@@ -93,7 +93,7 @@ async function research(lead: LeadWithActivities, seller: SellerProfile, emit: E
     if (msg.stop_reason === "refusal") return ""; // procedi senza ricerca: il briefing si basa sui dati del CRM
     if (msg.stop_reason !== "pause_turn") break;
     // Turno sospeso dal loop server-side: rimandiamo la risposta così com'è perché riprenda.
-    messages.push({ role: "assistant", content: msg.content });
+    messages.push({ role: "assistant", content: echoContent(msg.content) });
   }
   return text;
 }
@@ -135,7 +135,13 @@ export async function generateBriefing(user: SellerProfile & { id: string }, lea
   } else {
     const sources = new SourceCollector((s) => emit({ type: "source", source: s }));
     emit({ type: "status", phase: "research", message: "Cerco informazioni pubbliche sull'attività…" });
-    const facts = await research(lead, user, emit, sources, signal);
+    // La ricerca web è un di più: se fallisce (ricerca web non abilitata, errore temporaneo…) il briefing
+    // si prepara comunque con i dati del CRM. Gli errori bloccanti (chiave, rate limit) emergono nella fase successiva.
+    const facts = await research(lead, user, emit, sources, signal).catch((err) => {
+      if (signal.aborted) throw err;
+      console.warn("[ai/briefing] ricerca web non riuscita:", err);
+      return "";
+    });
     emit({ type: "status", phase: "writing", message: "Preparo il briefing…" });
     const out = await writeBriefing(lead, user, facts, signal);
     briefing = normalizeBriefing({ ...out, sources: sources.list() });

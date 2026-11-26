@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth";
 import { generateBriefing, loadLeadForBriefing } from "@/lib/ai/briefing";
-import { aiErrorMessage, ndjsonResponse } from "@/lib/ai/client";
+import { isAiDemo } from "@/lib/ai";
+import { aiErrorMessage, aiRateLimit, ndjsonResponse } from "@/lib/ai/client";
 import { BriefingRequestSchema, type BriefingEvent } from "@/lib/ai/schemas";
 
 export const runtime = "nodejs";
@@ -18,6 +19,8 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "leadId mancante" }, { status: 400 });
   const lead = await loadLeadForBriefing(user.id, parsed.data.leadId);
   if (!lead) return NextResponse.json({ error: "Cliente non trovato" }, { status: 404 });
+  const limited = aiRateLimit(user.id, "briefing", isAiDemo());
+  if (limited) return limited;
 
   return ndjsonResponse<BriefingEvent>(
     (send, signal) => generateBriefing(user, lead, send, signal),

@@ -8,7 +8,8 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/app") && !session) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   if ((pathname === "/login" || pathname === "/register") && session) {
