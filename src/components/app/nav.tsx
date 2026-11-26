@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Search, Users, KanbanSquare, Sparkles, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Search, Users, KanbanSquare, Sparkles, Settings, LogOut, Coins } from "lucide-react";
 import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
 
@@ -11,14 +11,19 @@ export const NAV = [
   { href: "/app/leads", label: "Clienti", icon: Users },
   { href: "/app/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/app/assistant", label: "Assistente", icon: Sparkles },
+  { href: "/app/credits", label: "Crediti", icon: Coins },
   { href: "/app/settings", label: "Profilo", icon: Settings },
 ];
+
+/** Sotto questa soglia la navigazione avvisa che i crediti stanno finendo (come LOW_CREDITS in @/lib/credits). */
+const LOW_CREDITS = 10;
+const CREDITS_HREF = "/app/credits";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   return exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
 }
 
-export function Sidebar({ user, aiDemo }: { user: { name: string; email: string }; aiDemo: boolean }) {
+export function Sidebar({ user, aiDemo, credits }: { user: { name: string; email: string }; aiDemo: boolean; credits: number }) {
   const pathname = usePathname();
   const router = useRouter();
   async function logout() {
@@ -40,14 +45,31 @@ export function Sidebar({ user, aiDemo }: { user: { name: string; email: string 
               )}>
               <Icon className={cn("h-[18px] w-[18px]", active ? "text-accent" : "text-ink-3 group-hover:text-ink-2")} />
               {label}
+              {href === CREDITS_HREF && (
+                <span
+                  className={cn(
+                    "ml-auto rounded-full px-2 py-0.5 font-mono text-[11.5px] font-semibold tabular-nums",
+                    credits < LOW_CREDITS ? "bg-warn-soft text-warn" : "bg-surface-2 text-ink-2",
+                  )}
+                  data-testid="credits-balance"
+                >
+                  <span className="sr-only">· saldo </span>{credits}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
       <div className="mt-auto space-y-3">
+        {credits < LOW_CREDITS && (
+          <Link href={CREDITS_HREF} className="block rounded-xl border border-warn/30 bg-warn-soft p-3 text-[12px] leading-relaxed text-ink-2 transition hover:border-warn/60" role="status">
+            <span className="font-semibold text-warn">{credits === 0 ? "Crediti esauriti." : `Ti restano ${credits} crediti.`}</span>{" "}
+            <span className="underline underline-offset-2">Ricarica</span> per continuare a usare l&apos;AI.
+          </Link>
+        )}
         {aiDemo && (
           <div className="rounded-xl border border-dashed border-line-strong p-3 text-[12px] leading-relaxed text-ink-2">
-            <span className="font-semibold text-ink">Modalità demo AI.</span> Aggiungi <code className="font-mono">ANTHROPIC_API_KEY</code> per risposte reali.
+            <span className="font-semibold text-ink">Modalità demo AI.</span> Aggiungi <code className="font-mono">ANTHROPIC_API_KEY</code> per risposte reali. In demo i crediti non vengono scalati.
           </div>
         )}
         <div className="flex items-center gap-3 rounded-xl px-2 py-2">
@@ -68,14 +90,26 @@ export function Sidebar({ user, aiDemo }: { user: { name: string; email: string 
 }
 
 /** Barra inferiore per mobile. */
-export function MobileNav() {
+export function MobileNav({ credits }: { credits: number }) {
   const pathname = usePathname();
-  const items = NAV.filter((n) => n.href !== "/app/settings");
+  const items = NAV.filter((n) => n.href !== "/app/settings" && n.href !== CREDITS_HREF);
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-bg/90 px-4 backdrop-blur lg:hidden">
         <Link href="/app"><Logo /></Link>
-        <Link href="/app/settings" className="rounded-full p-2 text-ink-2 hover:bg-surface-2" aria-label="Profilo"><Settings className="h-5 w-5" /></Link>
+        <div className="flex items-center gap-1">
+          <Link
+            href={CREDITS_HREF}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 font-mono text-[12.5px] font-semibold tabular-nums",
+              credits < LOW_CREDITS ? "border-warn/40 bg-warn-soft text-warn" : "border-line text-ink-2 hover:bg-surface-2",
+            )}
+            aria-label={`Crediti: ${credits}`}
+          >
+            <Coins className="h-4 w-4" aria-hidden />{credits}
+          </Link>
+          <Link href="/app/settings" className="rounded-full p-2 text-ink-2 hover:bg-surface-2" aria-label="Profilo"><Settings className="h-5 w-5" /></Link>
+        </div>
       </header>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Navigazione mobile">
         {items.map(({ href, label, icon: Icon, exact }) => {

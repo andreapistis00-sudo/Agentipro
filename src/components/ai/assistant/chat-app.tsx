@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUp, CalendarRange, Mail, Menu, MessageCircleQuestion, PhoneCall, Plus, Square, User, X, BellPlus, ClipboardList,
@@ -7,6 +8,7 @@ import {
 import { Badge, Button, Dialog, Spinner, useToast } from "@/components/ui";
 import type { ChatEvent, ChatMessageView, ConversationSummary } from "@/lib/ai/schemas";
 import { postNdjson } from "../ndjson";
+import { isNoCredits } from "@/components/credits/no-credits";
 import { ConversationList } from "./conversation-list";
 import { AssistantMark, MessageItem, type UiMessage } from "./message-item";
 
@@ -51,6 +53,7 @@ function suggestionsFor(lead: ChatLead | null) {
 
 export function ChatApp({ userName, demo, profileIncomplete, initialConversations, initialConversationId, initialMessages, initialLead }: Props) {
   const toast = useToast();
+  const router = useRouter();
   const [conversations, setConversations] = useState(initialConversations);
   const [activeId, setActiveId] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages);
@@ -174,11 +177,12 @@ export function ChatApp({ userName, demo, profileIncomplete, initialConversation
         ctrl.signal,
       );
       if (!completed) throw new Error("La risposta si è interrotta. Riprova.");
+      if (!demo) router.refresh(); // aggiorna il saldo crediti nella navigazione
     } catch (err) {
       if (ctrl.signal.aborted) {
         patchLast((m) => ({ ...m, streaming: false, status: null, content: m.content || "_Risposta interrotta._" }));
       } else {
-        patchLast((m) => ({ ...m, streaming: false, status: null, error: err instanceof Error ? err.message : "Errore imprevisto" }));
+        patchLast((m) => ({ ...m, streaming: false, status: null, error: err instanceof Error ? err.message : "Errore imprevisto", noCredits: isNoCredits(err) }));
       }
     } finally {
       setSending(false);

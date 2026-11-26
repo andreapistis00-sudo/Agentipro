@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "@/lib/session";
 import { clientIp, rateLimit, tooMany } from "@/lib/search/rate-limit";
+import { SIGNUP_CREDITS } from "@/lib/credits";
 
 const Body = z.object({
   name: z.string().trim().min(2, "Inserisci il tuo nome").max(80),
@@ -23,7 +24,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Esiste già un account con questa email" }, { status: 409 });
   }
   const user = await db.user.create({
-    data: { name, email, passwordHash: await bcrypt.hash(password, 10) },
+    data: {
+      name,
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      credits: SIGNUP_CREDITS,
+      creditTransactions: { create: { amount: SIGNUP_CREDITS, balanceAfter: SIGNUP_CREDITS, reason: "signup" } },
+    },
   });
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE, await signSession({ uid: user.id, email, name }), sessionCookieOptions);

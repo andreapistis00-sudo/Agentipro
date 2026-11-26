@@ -5,6 +5,7 @@ import { Gauge, Minus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { Badge, Button, Card, useToast } from "@/components/ui";
 import { cn, relativeTime, scoreTone } from "@/lib/utils";
 import { parseScoreReason, type ScoreResponse } from "@/lib/ai/schemas";
+import { RECHARGE_ACTION, RechargeLink, isNoCredits, noCreditsFrom } from "@/components/credits/no-credits";
 
 export type ScorePanelProps = { leadId: string; score: number | null; scoreReason: string | null; scoredAt: string | null };
 
@@ -42,6 +43,7 @@ export function ScorePanel({ leadId, score, scoreReason, scoredAt }: ScorePanelP
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [noCredits, setNoCredits] = useState<string | null>(null);
   const [refreshing, startTransition] = useTransition();
   const reason = parseScoreReason(scoreReason);
   const tone = TONE[scoreTone(score)];
@@ -49,6 +51,7 @@ export function ScorePanel({ leadId, score, scoreReason, scoredAt }: ScorePanelP
 
   async function run() {
     setLoading(true);
+    setNoCredits(null);
     try {
       const res = await fetch("/api/ai/score", {
         method: "POST",
@@ -56,10 +59,17 @@ export function ScorePanel({ leadId, score, scoreReason, scoredAt }: ScorePanelP
         body: JSON.stringify({ leadIds: [leadId] }),
       });
       const data = (await res.json().catch(() => null)) as (ScoreResponse & { error?: string }) | null;
+      const nc = noCreditsFrom(res.status, data);
+      if (nc) throw nc;
       if (!res.ok || !data?.results?.length) throw new Error(data?.error ?? data?.errors?.[0]?.error ?? "Valutazione non riuscita");
       toast(`Punteggio aggiornato: ${data.results[0].score}/100`);
       startTransition(() => router.refresh());
     } catch (e) {
+      if (isNoCredits(e)) {
+        setNoCredits(e.message);
+        toast("Crediti esauriti", "error", RECHARGE_ACTION);
+        return;
+      }
       toast(e instanceof Error ? e.message : "Valutazione non riuscita", "error");
     } finally {
       setLoading(false);
@@ -117,6 +127,13 @@ export function ScorePanel({ leadId, score, scoreReason, scoredAt }: ScorePanelP
             );
           })}
         </ul>
+      )}
+
+      {noCredits && (
+        <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+          <span className="min-w-0 flex-1">{noCredits}</span>
+          <RechargeLink />
+        </div>
       )}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2">

@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { rateLimit, tooMany } from "@/lib/search/rate-limit";
 
 /**
- * Fallback lato server sulle richieste a Opus 5.5: se il modello declina per policy, l'API ripete
+ * Fallback lato server sulle richieste a MODEL_SMART (Sonnet 5.5): se il modello declina per policy, l'API ripete
  * la stessa richiesta sul modello di fallback predefinito nella stessa chiamata.
  * Richiede il namespace beta (`client.beta.messages`) e l'header `server-side-fallback-2026-07-01`.
  */
@@ -15,7 +15,8 @@ export const SMART_BETA = {
 
 /**
  * Chat multi-turno: oltre al fallback, `thinking-binding-controls-2026-08-01` permette di impostare
- * esplicitamente `thinking.block_binding.prefix_mismatch_behavior` (vedi chat.ts). La cronologia è append-only,
+ * esplicitamente `thinking.block_binding.prefix_mismatch_behavior` (vedi chat.ts; supportato da Sonnet 5.5 con
+ * thinking adattivo). La cronologia è append-only,
  * quindi in condizioni normali nessun blocco viene scartato; "drop_block" serve a degradare invece di
  * rispondere 400 se il prefisso cambia per cause legittime (un deploy che modifica tool o prompt di sistema
  * delle conversazioni già aperte). Sui primi turni il valore impostato non cambia nulla.

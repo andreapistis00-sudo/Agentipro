@@ -10,6 +10,7 @@ import { telHref } from "@/lib/crm/format";
 import type { LeadDTO } from "@/lib/crm/types";
 import { FollowUpBadge } from "./bits";
 import { api } from "./client-api";
+import { RECHARGE_ACTION, noCreditsMessage } from "@/components/credits/no-credits";
 import { LostReasonDialog } from "./lost-reason-dialog";
 import { NewLeadButton } from "./new-lead-dialog";
 
@@ -104,6 +105,10 @@ export function LeadsView({ leads, total, pages, query, tags, hasAnyLead }: {
     setBusy("ai");
     const res = await api<{ results?: { leadId: string; score: number }[]; errors?: { leadId: string; error: string }[] }>("/api/ai/score", "POST", { leadIds: [...sel] });
     setBusy(null);
+    if (!res.ok && res.status === 402) {
+      const d = res.data as { needed?: number; balance?: number } | undefined;
+      return toast(noCreditsMessage(d?.needed, d?.balance), "error", RECHARGE_ACTION);
+    }
     if (!res.ok) return toast(`Valutazione non riuscita: ${res.error}`, "error");
     const n = res.data.results?.length ?? 0;
     const failed = res.data.errors?.length ?? 0;

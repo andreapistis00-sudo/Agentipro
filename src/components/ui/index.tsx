@@ -1,6 +1,7 @@
 "use client";
 // Primitivi UI condivisi. Usare questi in tutta l'app per coerenza visiva.
 import * as React from "react";
+import Link from "next/link";
 import { Loader2, X } from "lucide-react";
 import { cn, scoreTone, stageLabel } from "@/lib/utils";
 
@@ -191,16 +192,17 @@ export function Dialog({ open, onClose, title, children, className }: {
 }
 
 /* ---------- Toast minimale ---------- */
-type Toast = { id: number; message: string; tone: "success" | "error" | "info" };
-const ToastCtx = React.createContext<(message: string, tone?: Toast["tone"]) => void>(() => {});
+type ToastAction = { href: string; label: string };
+type Toast = { id: number; message: string; tone: "success" | "error" | "info"; action?: ToastAction };
+const ToastCtx = React.createContext<(message: string, tone?: Toast["tone"], action?: ToastAction) => void>(() => {});
 export const useToast = () => React.useContext(ToastCtx);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<Toast[]>([]);
-  const push = React.useCallback((message: string, tone: Toast["tone"] = "success") => {
+  const push = React.useCallback((message: string, tone: Toast["tone"] = "success", action?: ToastAction) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, message, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
+    setToasts((t) => [...t, { id, message, tone, action }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 8000 : 3500);
   }, []);
   return (
     <ToastCtx.Provider value={push}>
@@ -212,6 +214,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             t.tone === "error" ? "bg-danger text-white" : t.tone === "info" ? "bg-surface text-ink border border-line" : "bg-ink text-bg",
           )}>
             {t.message}
+            {t.action && (
+              <Link
+                href={t.action.href}
+                onClick={() => setToasts((all) => all.filter((x) => x.id !== t.id))}
+                className="ml-2 inline-block font-semibold underline underline-offset-2"
+              >
+                {t.action.label}
+              </Link>
+            )}
           </div>
         ))}
       </div>

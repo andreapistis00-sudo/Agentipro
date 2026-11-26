@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { CurrentUser } from "./auth";
 
 /** Modello per ragionamenti complessi (chat, briefing). */
-export const MODEL_SMART = process.env.AI_MODEL_SMART || "claude-opus-5-5";
+export const MODEL_SMART = process.env.AI_MODEL_SMART || "claude-sonnet-5-5";
 /** Modello veloce/economico per task semplici e massivi (lead score). */
 export const MODEL_FAST = process.env.AI_MODEL_FAST || "claude-haiku-5-5";
 

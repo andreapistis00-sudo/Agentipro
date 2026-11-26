@@ -7,8 +7,9 @@ import { Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { hostOf, type ChatAction, type ChatMessageView, type Source } from "@/lib/ai/schemas";
 import { copyText } from "../ndjson";
+import { RechargeLink } from "@/components/credits/no-credits";
 
-export type UiMessage = ChatMessageView & { streaming?: boolean; status?: string | null; error?: string | null };
+export type UiMessage = ChatMessageView & { streaming?: boolean; status?: string | null; error?: string | null; noCredits?: boolean };
 
 export function AssistantMark({ className }: { className?: string }) {
   return (
@@ -114,7 +115,8 @@ export function MessageItem({ message: m, onRetry }: { message: UiMessage; onRet
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1">{m.error}</span>
-            {onRetry && (
+            {m.noCredits && <RechargeLink />}
+            {onRetry && !m.noCredits && (
               <button onClick={onRetry} className="inline-flex items-center gap-1 font-medium hover:underline">
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden />Riprova
               </button>

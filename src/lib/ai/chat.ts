@@ -1,5 +1,5 @@
 import "server-only";
-// Assistente chat: loop manuale dei tool con streaming (Opus 5.5) oppure risposte demo che usano i dati reali del CRM.
+// Assistente chat: loop manuale dei tool con streaming (MODEL_SMART, Sonnet 5.5) oppure risposte demo che usano i dati reali del CRM.
 import Anthropic from "@anthropic-ai/sdk";
 import type { Conversation, Message } from "@prisma/client";
 import { db } from "@/lib/db";

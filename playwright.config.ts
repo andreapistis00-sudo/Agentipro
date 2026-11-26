@@ -5,6 +5,8 @@ const env = {
   DATABASE_URL: "file:./e2e.db",
   LEADS_DEMO_MODE: "true",
   ANTHROPIC_API_KEY: "",
+  STRIPE_SECRET_KEY: "",
+  STRIPE_WEBHOOK_SECRET: "",
   NEXT_DIST_DIR: ".next-e2e",
   AUTH_SECRET: "e2e-test-secret-not-for-production",
   APP_URL: `http://localhost:${PORT}`,

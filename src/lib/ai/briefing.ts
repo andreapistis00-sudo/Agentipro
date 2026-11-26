@@ -1,6 +1,6 @@
 import "server-only";
 // Briefing pre-visita.
-// Strategia in due chiamate a Opus 5.5:
+// Strategia in due chiamate a MODEL_SMART (Sonnet 5.5):
 //   1) ricerca con il server tool web_search (streaming, gestione pause_turn) → fatti + fonti;
 //   2) structured output (output_config.format) per il JSON finale.
 // Le due fasi sono separate perché gli output strutturati non sono compatibili con le citazioni
@@ -103,7 +103,7 @@ async function writeBriefing(lead: LeadWithActivities, seller: SellerProfile, re
     {
       model: MODEL_SMART,
       max_tokens: 16000,
-      output_config: { effort: "medium", format: betaZodOutputFormat(BriefingOutputSchema) },
+      output_config: { effort: "high", format: betaZodOutputFormat(BriefingOutputSchema) },
       system: briefingWriteSystemPrompt(seller, todayIt()),
       messages: [{ role: "user", content: briefingWriteUserPrompt(leadToText(lead, lead.activities), researchText) }],
       ...SMART_BETA,

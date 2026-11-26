@@ -9,6 +9,7 @@ import { Badge, Button, Card, Spinner, useToast } from "@/components/ui";
 import { cn, formatDate } from "@/lib/utils";
 import { briefingToText, hostOf, parseBriefing, type Briefing, type BriefingEvent, type Source } from "@/lib/ai/schemas";
 import { copyText, postNdjson } from "./ndjson";
+import { RECHARGE_ACTION, RechargeLink, isNoCredits } from "@/components/credits/no-credits";
 
 export type BriefingPanelProps = { leadId: string; initialBriefing: string | null; briefingAt: string | null };
 
@@ -31,6 +32,7 @@ export function BriefingPanel({ leadId, initialBriefing, briefingAt }: BriefingP
   const [status, setStatus] = useState("");
   const [liveSources, setLiveSources] = useState<Source[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [noCredits, setNoCredits] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function BriefingPanel({ leadId, initialBriefing, briefingAt }: BriefingP
     abortRef.current = ctrl;
     setRunning(true);
     setError(null);
+    setNoCredits(false);
     setPhase("context");
     setStatus("Avvio…");
     setLiveSources([]);
@@ -74,7 +77,10 @@ export function BriefingPanel({ leadId, initialBriefing, briefingAt }: BriefingP
       if (ctrl.signal.aborted) return;
       const msg = e instanceof Error ? e.message : "Generazione non riuscita";
       setError(msg);
-      toast(msg, "error");
+      if (isNoCredits(e)) {
+        setNoCredits(true);
+        toast("Crediti esauriti", "error", RECHARGE_ACTION);
+      } else toast(msg, "error");
     } finally {
       if (abortRef.current === ctrl) {
         setRunning(false);
@@ -117,12 +123,20 @@ export function BriefingPanel({ leadId, initialBriefing, briefingAt }: BriefingP
           <p className="mt-1 max-w-sm text-sm text-ink-2">
             In meno di un minuto: chi è il cliente, perché visitarlo ora, frase d&apos;apertura, obiezioni probabili e prossimo passo.
           </p>
-          {error && <p className="mt-3 max-w-sm rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{error}</p>}
+          {error && (
+            <div className="mt-3 flex max-w-sm flex-col items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+              <p>{error}</p>
+              {noCredits && <RechargeLink />}
+            </div>
+          )}
           <Button className="mt-5" onClick={generate}><Sparkles className="h-4 w-4" aria-hidden />Prepara la visita</Button>
         </div>
       )}
       {error && briefing && !running && (
-        <p className="border-t border-line bg-danger-soft px-5 py-2.5 text-sm text-danger" role="alert">{error}</p>
+        <div className="flex flex-wrap items-center gap-2 border-t border-line bg-danger-soft px-5 py-2.5 text-sm text-danger" role="alert">
+          <p className="min-w-0 flex-1">{error}</p>
+          {noCredits && <RechargeLink />}
+        </div>
       )}
     </Card>
   );

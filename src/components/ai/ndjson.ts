@@ -1,6 +1,10 @@
 // Lettura lato client degli stream NDJSON delle API AI.
+import { noCreditsFrom } from "@/components/credits/no-credits";
 
-/** Invia una POST JSON e invoca `onEvent` per ogni riga NDJSON ricevuta. Lancia Error con messaggio leggibile. */
+/**
+ * Invia una POST JSON e invoca `onEvent` per ogni riga NDJSON ricevuta. Lancia Error con messaggio leggibile
+ * (NoCreditsError se l'API risponde 402 per crediti esauriti).
+ */
 export async function postNdjson<E>(url: string, body: unknown, onEvent: (e: E) => void, signal?: AbortSignal) {
   const res = await fetch(url, {
     method: "POST",
@@ -10,6 +14,8 @@ export async function postNdjson<E>(url: string, body: unknown, onEvent: (e: E) 
   });
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => null);
+    const noCredits = noCreditsFrom(res.status, data);
+    if (noCredits) throw noCredits;
     throw new Error(data?.error ?? (res.status === 401 ? "Sessione scaduta: accedi di nuovo." : "Errore di rete. Riprova."));
   }
   // Solo il parsing è protetto: le eccezioni lanciate da `onEvent` (es. evento "error") devono risalire al chiamante.

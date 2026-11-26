@@ -1,5 +1,9 @@
 import { Plus } from "lucide-react";
 import { Container, H2, Kicker } from "./shared";
+import { SIGNUP_CREDITS, creditCost, creditPacks } from "@/lib/credits";
+
+const cr = (n: number) => (n === 1 ? "1 credito" : `${n} crediti`);
+const firstPack = creditPacks()[0];
 
 export const FAQS = [
   {
@@ -20,15 +24,15 @@ export const FAQS = [
   },
   {
     q: "I miei clienti li vede qualcun altro?",
-    a: "No. Ogni account vede solo i propri lead, note e trattative, anche nei piani Team. E puoi esportare tutto in CSV quando vuoi.",
+    a: "No. Ogni account vede solo i propri lead, note e trattative, anche quando lavori in squadra. E puoi esportare tutto in CSV quando vuoi.",
   },
   {
     q: "Devo installare qualcosa? Funziona dal telefono?",
     a: "Niente da installare: si usa dal browser, ed è pensato prima di tutto per il telefono. In macchina, al bar, tra una visita e l'altra.",
   },
   {
-    q: "Serve la carta di credito per provare?",
-    a: "No. Crei l'account, imposti cosa vendi e fai la prima ricerca. Se ti torna utile, decidi tu se passare a Pro.",
+    q: "Quanto costa? Serve la carta di credito per provare?",
+    a: `No, per provare non serve: crei l'account e ricevi ${SIGNUP_CREDITS} crediti gratis. Le funzioni AI usano crediti (${cr(creditCost("score"))} per un punteggio, ${cr(creditCost("chat"))} per un messaggio all'assistente, ${cr(creditCost("briefing"))} per un briefing), mentre ricerca, CRM e pipeline sono sempre gratis. Quando finiscono ricarichi un pacchetto${firstPack ? `, da ${(firstPack.priceCents / 100).toLocaleString("it-IT")} € per ${firstPack.credits} crediti` : ""}: nessun abbonamento, paghi solo quello che usi.`,
   },
 ];
 

@@ -49,7 +49,7 @@ const USER = { id: "u1", name: "Mario Rossi", company: null, sector: null, produ
 const CONV = { id: "c1", userId: "u1", title: "Test", leadId: null, createdAt: new Date(), updatedAt: new Date() };
 
 function message(content: unknown[], stop_reason: Msg["stop_reason"]): Msg {
-  return { id: "msg", type: "message", role: "assistant", model: "claude-opus-5-5", content, stop_reason, stop_sequence: null, usage: {} } as unknown as Msg;
+  return { id: "msg", type: "message", role: "assistant", model: "claude-sonnet-5-5", content, stop_reason, stop_sequence: null, usage: {} } as unknown as Msg;
 }
 
 type Req = { messages: Anthropic.Beta.BetaMessageParam[]; tools: { name: string }[]; thinking: unknown; system: string; model: string };
@@ -68,7 +68,7 @@ beforeEach(() => {
   );
 });
 
-describe("loop della chat (Opus 5.5)", () => {
+describe("loop della chat (Sonnet 5.5)", () => {
   it("tool_use → un solo messaggio user con tutti i tool_result, pause_turn → ripresa senza messaggi aggiunti", async () => {
     const r1 = message([
       { type: "thinking", thinking: "", signature: "sig1" },
@@ -89,8 +89,8 @@ describe("loop della chat (Opus 5.5)", () => {
     expect(api.calls).toHaveLength(3);
     const [c1, c2, c3] = api.calls as Req[];
 
-    // Parametri compatibili con Opus 5.5: thinking adattivo, nessun budget/temperature/tool_choice forzato.
-    expect(c1.model).toBe("claude-opus-5-5");
+    // Parametri compatibili con Sonnet 5.5: thinking adattivo, nessun budget/temperature/tool_choice forzato.
+    expect(c1.model).toBe("claude-sonnet-5-5");
     expect(c1).not.toHaveProperty("temperature");
     expect(c1).not.toHaveProperty("tool_choice");
     expect(c1.thinking).toMatchObject({ type: "adaptive" });
@@ -186,7 +186,7 @@ describe("echoContent", () => {
       { type: "text", text: "parziale" },
       { type: "tool_use", id: "t0", name: "x", input: {} },
       { type: "server_tool_use", id: "s0", name: "web_search", input: {} },
-      { type: "fallback", from: { model: "claude-opus-5-5" }, to: { model: "claude-opus-5" } },
+      { type: "fallback", from: { model: "claude-sonnet-5-5" }, to: { model: "claude-sonnet-5" } },
       { type: "thinking", thinking: "", signature: "s2" },
       { type: "tool_use", id: "t1", name: "y", input: {} },
     ] as unknown as Anthropic.Beta.BetaContentBlock[];
