@@ -29,6 +29,11 @@ const OFFLINE_NOTICE = "OpenStreetMap non è raggiungibile in questo momento: st
 async function resolveCenter(location: string): Promise<SearchCenter | null> {
   const coords = parseLatLng(location);
   if (coords) return { ...coords, label: "La tua posizione" };
+  // Con Google configurato il geocoding passa da lì (più affidabile dei server pubblici di OSM).
+  if (googleEnabled()) {
+    const viaGoogle = await googleGeocode(location).catch(() => null);
+    if (viaGoogle) return viaGoogle;
+  }
   try {
     if (osmDown()) throw new ProviderUnavailableError("OpenStreetMap temporaneamente non disponibile");
     return await geocode(location);
@@ -50,7 +55,7 @@ export async function searchPlaces(params: SearchParams): Promise<ProviderOutcom
   let notice: string | null = null;
   if (googleEnabled()) {
     try {
-      const results = await searchGoogle({ query: params.query, locationLabel: parseLatLng(params.location) ? "" : center.label, center, radiusKm: params.radiusKm });
+      const results = await searchGoogle({ query: params.query, center, radiusKm: params.radiusKm });
       return { provider: "google", center, results, notice: null };
     } catch (err) {
       console.warn("[search] Google Places non disponibile, ripiego su OpenStreetMap:", err instanceof Error ? err.message : err);

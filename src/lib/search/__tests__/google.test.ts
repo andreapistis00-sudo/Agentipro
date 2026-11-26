@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GOOGLE_FIELD_MASK, buildGoogleRequest, parseGooglePlaces, type GooglePlace } from "../google";
+import { GOOGLE_FIELD_MASK, buildGoogleRequest, cleanLocation, parseGooglePlaces, type GooglePlace } from "../google";
 
 const center = { lat: 41.9028, lng: 12.4964 };
 
@@ -55,15 +55,20 @@ describe("parseGooglePlaces", () => {
 });
 
 describe("buildGoogleRequest", () => {
-  it("imposta lingua, bias circolare e paginazione", () => {
-    const body = buildGoogleRequest({ query: "ristoranti", locationLabel: "Roma", center, radiusKm: 80, pageToken: "abc" });
-    expect(body).toMatchObject({
-      textQuery: "ristoranti Roma",
-      languageCode: "it",
-      pageSize: 20,
-      pageToken: "abc",
-      locationBias: { circle: { center: { latitude: 41.9028, longitude: 12.4964 }, radius: 50000 } },
-    });
+  it("cerca solo la categoria dentro un riquadro attorno al centro, con paginazione", () => {
+    const body = buildGoogleRequest({ query: "ristoranti", center, radiusKm: 10, pageToken: "abc" });
+    expect(body).toMatchObject({ textQuery: "ristoranti", languageCode: "it", pageSize: 20, pageToken: "abc" });
+    const r = body.locationRestriction.rectangle;
+    expect(r.low.latitude).toBeCloseTo(41.9028 - 10 / 111.32, 4);
+    expect(r.high.latitude).toBeCloseTo(41.9028 + 10 / 111.32, 4);
+    expect(r.low.longitude).toBeLessThan(12.4964);
+    expect(r.high.longitude).toBeGreaterThan(12.4964);
+  });
+
+  it("ripulisce i luoghi descrittivi per il geocoding", () => {
+    expect(cleanLocation("Cagliari e provincia")).toBe("Cagliari");
+    expect(cleanLocation("provincia di Bergamo")).toBe("Bergamo");
+    expect(cleanLocation("Milano")).toBe("Milano");
   });
 
   it("chiede i campi necessari nel field mask", () => {

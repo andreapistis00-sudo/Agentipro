@@ -40,21 +40,36 @@ export type GoogleResponse = { places?: GooglePlace[]; nextPageToken?: string };
 
 export const googleEnabled = () => Boolean(process.env.GOOGLE_PLACES_API_KEY);
 
-/** Corpo della richiesta Text Search. */
-export function buildGoogleRequest(opts: { query: string; locationLabel: string; center: GeoPoint; radiusKm: number; pageToken?: string }) {
+/**
+ * Corpo della richiesta Text Search: cerca solo la categoria (es. "gelateria") e limita i risultati
+ * al riquadro attorno al centro. Aggiungere il luogo al testo restringe troppo la ricerca.
+ */
+export function buildGoogleRequest(opts: { query: string; center: GeoPoint; radiusKm: number; pageToken?: string }) {
+  const dLat = opts.radiusKm / 111.32;
+  const dLng = opts.radiusKm / (111.32 * Math.max(0.01, Math.cos((opts.center.lat * Math.PI) / 180)));
   return {
-    textQuery: opts.locationLabel ? `${opts.query} ${opts.locationLabel}` : opts.query,
+    textQuery: opts.query,
     languageCode: "it",
     regionCode: "IT",
     pageSize: 20,
-    locationBias: {
-      circle: {
-        center: { latitude: opts.center.lat, longitude: opts.center.lng },
-        radius: Math.min(50_000, Math.round(opts.radiusKm * 1000)),
+    locationRestriction: {
+      rectangle: {
+        low: { latitude: opts.center.lat - dLat, longitude: opts.center.lng - dLng },
+        high: { latitude: opts.center.lat + dLat, longitude: opts.center.lng + dLng },
       },
     },
     ...(opts.pageToken ? { pageToken: opts.pageToken } : {}),
   };
+}
+
+/** "Cagliari e provincia" → "Cagliari": il geocoding vuole un luogo, non una descrizione. */
+export function cleanLocation(location: string): string {
+  return location
+    .replace(/\b(e|and)\s+(la\s+)?provincia\b/gi, "")
+    .replace(/\bprovincia\s+di\b/gi, "")
+    .replace(/\(\s*prov\.?\s*\)/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim() || location;
 }
 
 function cityFromComponents(components: GooglePlace["addressComponents"]): string | null {
@@ -99,7 +114,7 @@ export function parseGooglePlaces(places: GooglePlace[], center: GeoPoint, radiu
   return out.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, MAX_RESULTS);
 }
 
-export async function searchGoogle(opts: { query: string; locationLabel: string; center: GeoPoint; radiusKm: number }): Promise<SearchResult[]> {
+export async function searchGoogle(opts: { query: string; center: GeoPoint; radiusKm: number }): Promise<SearchResult[]> {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key) throw new SearchError("Google Places non è configurato", 500);
   const places: GooglePlace[] = [];
@@ -133,11 +148,11 @@ export async function googleGeocode(location: string): Promise<{ lat: number; ln
     timeoutMs: 8000,
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.location,places.formattedAddress" },
-    body: JSON.stringify({ textQuery: location, languageCode: "it", regionCode: "IT", pageSize: 1 }),
+    body: JSON.stringify({ textQuery: cleanLocation(location), languageCode: "it", regionCode: "IT", pageSize: 1 }),
   });
   if (!res.ok) return null;
   const data = (await res.json().catch(() => null)) as GoogleResponse | null;
   const p = data?.places?.[0];
   if (p?.location?.latitude == null || p.location.longitude == null) return null;
-  return { lat: p.location.latitude, lng: p.location.longitude, label: p.formattedAddress?.replace(/,\s*Italia$/i, "") || location };
+  return { lat: p.location.latitude, lng: p.location.longitude, label: cleanLocation(location) };
 }
