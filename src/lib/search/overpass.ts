@@ -117,6 +117,9 @@ export async function searchOverpass(opts: { category: Category | null; text: st
     return results;
   } catch (err) {
     const errors = err instanceof AggregateError ? err.errors : [err];
+    errors.forEach((e, i) =>
+      console.error(`[search] Overpass ${new URL(OVERPASS_ENDPOINTS[i] ?? "http://x").host}: ${e instanceof Error ? `${e.message}${e.cause instanceof Error ? ` (${e.cause.message})` : ""}` : String(e)}`),
+    );
     const searchError = errors.find((e) => e instanceof SearchError && !(e instanceof ProviderUnavailableError));
     if (searchError) throw searchError;
     throw new ProviderUnavailableError("OpenStreetMap non è raggiungibile");
