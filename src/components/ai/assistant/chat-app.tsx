@@ -87,6 +87,24 @@ export function ChatApp({ userName, demo, profileIncomplete, initialConversation
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Props aggiornate dal server (navigazione con Link verso ?leadId= / ?c=, refresh): si applicano solo se
+  // indicano davvero un'altra conversazione, così gli aggiornamenti dell'URL fatti da qui non azzerano la chat.
+  const serverKey = `${initialConversationId ?? ""}|${initialLead?.id ?? ""}`;
+  const lastServerKey = useRef(serverKey);
+  useEffect(() => {
+    if (serverKey === lastServerKey.current) return;
+    lastServerKey.current = serverKey;
+    if (sending || initialConversationId === activeId) {
+      setConversations(initialConversations);
+      return;
+    }
+    setConversations(initialConversations);
+    setActiveId(initialConversationId);
+    setMessages(initialMessages);
+    setLead(initialLead);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reagisce solo al cambio di destinazione
+  }, [serverKey]);
+
   const patchLast = useCallback((fn: (m: UiMessage) => UiMessage) => {
     setMessages((ms) => (ms.length ? [...ms.slice(0, -1), fn(ms[ms.length - 1])] : ms));
   }, []);
@@ -283,22 +301,19 @@ export function ChatApp({ userName, demo, profileIncomplete, initialConversation
           <div className="min-w-0 flex-1">
             <div className="truncate text-[14.5px] font-semibold">{active?.title ?? "Nuova conversazione"}</div>
           </div>
-          {lead && (
-            <span className="inline-flex max-w-[45%] items-center gap-1.5 rounded-full border border-accent/30 bg-accent-soft py-1 pl-2.5 pr-1.5 text-[12.5px] font-medium text-accent">
-              <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <Link href={`/app/leads/${lead.id}`} className="truncate hover:underline" title={`Apri la scheda di ${lead.name}`}>{lead.name}</Link>
-              {!activeId && (
-                <button onClick={() => { setLead(null); setUrl({}); }} className="rounded-full p-0.5 hover:bg-accent/10" aria-label="Rimuovi il cliente dal contesto">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </span>
-          )}
+          {lead && <LeadChip lead={lead} removable={!activeId} onRemove={() => { setLead(null); setUrl({}); }} className="hidden max-w-[45%] sm:inline-flex" />}
           {demo && <Badge tone="warn" className="shrink-0" title="Nessuna chiave API: risposte dimostrative basate sui dati reali del tuo CRM">Demo</Badge>}
           <button onClick={startNew} className="rounded-full p-2 text-ink-2 hover:bg-surface-2 lg:hidden" aria-label="Nuova conversazione">
             <Plus className="h-5 w-5" />
           </button>
         </header>
+
+        {lead && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-line bg-bg/80 px-4 py-2 text-[12px] text-ink-3 sm:hidden">
+            Contesto:
+            <LeadChip lead={lead} removable={!activeId} onRemove={() => { setLead(null); setUrl({}); }} className="inline-flex min-w-0" />
+          </div>
+        )}
 
         <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
@@ -363,7 +378,7 @@ export function ChatApp({ userName, demo, profileIncomplete, initialConversation
               }}
               placeholder={lead ? `Chiedi qualcosa su ${lead.name}…` : "Scrivi una richiesta…"}
               maxLength={8000}
-              className="max-h-[200px] min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-ink placeholder:text-ink-3 focus:outline-none"
+              className="max-h-[200px] min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-ink placeholder:text-ink-3 focus:outline-none focus-visible:outline-none"
             />
             {sending ? (
               <Button type="button" size="icon" variant="outline" onClick={() => abortRef.current?.abort()} aria-label="Interrompi la risposta">
@@ -389,5 +404,19 @@ export function ChatApp({ userName, demo, profileIncomplete, initialConversation
         </div>
       </Dialog>
     </div>
+  );
+}
+
+function LeadChip({ lead, removable, onRemove, className }: { lead: ChatLead; removable: boolean; onRemove: () => void; className?: string }) {
+  return (
+    <span className={`items-center gap-1.5 rounded-full border border-accent/30 bg-accent-soft py-1 pl-2.5 pr-1.5 text-[12.5px] font-medium text-accent ${className ?? ""}`}>
+      <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <Link href={`/app/leads/${lead.id}`} className="truncate hover:underline" title={`Apri la scheda di ${lead.name}`}>{lead.name}</Link>
+      {removable ? (
+        <button onClick={onRemove} className="rounded-full p-0.5 hover:bg-accent/10" aria-label="Rimuovi il cliente dal contesto">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      ) : <span className="w-1" aria-hidden />}
+    </span>
   );
 }

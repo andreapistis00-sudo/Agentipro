@@ -303,7 +303,7 @@ export function demoBriefing(lead: LeadForAi, activities: ActivityForAi[], selle
   const openingLine = lastContact
     ? `Buongiorno${lead.contactName ? ` ${lead.contactName.split(" ")[0]}` : ""}, sono ${first}: ero passato a sentire com'è andata dopo la nostra ultima chiacchierata, ha due minuti?`
     : lead.rating != null && lead.rating >= 4.3
-      ? `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}. Ho letto ottime recensioni su di voi e lavoro con diverse ${cat === "attività" ? "attività" : cat} della zona: posso rubarle due minuti?`
+      ? `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}. Ho letto ottime recensioni su di voi e lavoro con altre attività simili della zona: posso rubarle due minuti?`
       : `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}: lavoro con altre attività come la vostra${where} e ho un'idea che potrebbe interessarvi. È lei il titolare?`;
 
   const isOwner = /titolar|proprietar|socio/.test(norm(lead.contactRole));
@@ -405,7 +405,7 @@ export function demoAnswerPrioritize(leads: DemoLeadRow[], due: DemoFollowups, s
   let n = 0;
   for (const f of due.followups.filter((f) => f.overdue).slice(0, 3)) {
     seen.add(f.leadId);
-    lines.push(`${++n}. **${f.name}** — follow-up scaduto${f.date ? ` dal ${fmtDay(f.date)}` : ""} (${f.stage}). ${f.hasPhone ? "Chiamalo stamattina." : "Non hai il numero: passa di persona."}`);
+    lines.push(`${++n}. **${f.name}** — follow-up scaduto${f.date ? ` dal ${fmtDay(f.date)}` : ""} (${f.stage}). ${f.hasPhone ? "Da chiamare stamattina." : "Non hai il numero: passa di persona."}`);
   }
   const boost: Record<string, number> = { negotiation: 25, qualified: 15, contacted: 5 };
   const ranked = [...leads].sort((a, b) => (b.score ?? 45) + (boost[b.stage] ?? 0) - ((a.score ?? 45) + (boost[a.stage] ?? 0)));

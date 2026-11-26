@@ -37,7 +37,6 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
 
   return (
     <ChatApp
-      key={`${active?.id ?? "new"}-${lead?.id ?? ""}`}
       userName={user.name.split(" ")[0]}
       demo={isAiDemo()}
       profileIncomplete={!user.products && !user.idealCustomer}
