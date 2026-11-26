@@ -21,7 +21,9 @@ export class ProviderUnavailableError extends Error {
 export async function fetchWithTimeout(url: string, init: RequestInit & { timeoutMs?: number; service: string }): Promise<Response> {
   const { timeoutMs = 10_000, service, ...rest } = init;
   try {
-    return await fetch(url, { ...rest, signal: AbortSignal.timeout(timeoutMs), cache: "no-store" });
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = rest.signal ? AbortSignal.any([timeout, rest.signal]) : timeout;
+    return await fetch(url, { ...rest, signal, cache: "no-store" });
   } catch (err) {
     const timeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
     throw new ProviderUnavailableError(

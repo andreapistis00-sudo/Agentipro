@@ -5,7 +5,12 @@ import { haversineKm, roundKm } from "./geo";
 import { USER_AGENT } from "./nominatim";
 import { MAX_RESULTS, type GeoPoint, type SearchResult } from "./types";
 
-export const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+export const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
 
 export type OverpassElement = {
   type: "node" | "way" | "relation";
@@ -82,29 +87,40 @@ export function parseOverpass(data: { elements?: OverpassElement[] }, center: Ge
   return out.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, MAX_RESULTS);
 }
 
-/** Esegue la query sugli endpoint Overpass, passando al successivo se uno non risponde. */
+/**
+ * Esegue la query su tutti gli endpoint Overpass in parallelo e usa la prima risposta valida:
+ * i server pubblici sono spesso lenti o saturi, così l'attesa è quella del più veloce.
+ */
 export async function searchOverpass(opts: { category: Category | null; text: string; center: GeoPoint; radiusKm: number }): Promise<SearchResult[]> {
   const query = buildOverpassQuery(opts);
-  let lastError: unknown = null;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const res = await fetchWithTimeout(endpoint, {
-        service: "OpenStreetMap (Overpass)",
-        timeoutMs: 20_000,
-        method: "POST",
-        headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-        body: new URLSearchParams({ data: query }).toString(),
-      });
-      if (isUnavailableStatus(res.status)) throw new ProviderUnavailableError(`Overpass occupato o non disponibile (HTTP ${res.status})`);
-      if (!res.ok) throw new SearchError("La ricerca su OpenStreetMap non è valida. Prova con parole diverse.");
-      const data = (await res.json().catch(() => null)) as { elements?: OverpassElement[]; remark?: string } | null;
-      if (!data) throw new ProviderUnavailableError("Risposta Overpass non leggibile");
-      if (!data.elements?.length && data.remark?.includes("timed out")) throw new ProviderUnavailableError("Overpass ha superato il tempo massimo");
-      return parseOverpass(data, opts.center, opts.category);
-    } catch (err) {
-      if (!(err instanceof ProviderUnavailableError)) throw err;
-      lastError = err;
-    }
+  const controllers = OVERPASS_ENDPOINTS.map(() => new AbortController());
+
+  const attempt = async (endpoint: string, i: number): Promise<SearchResult[]> => {
+    const res = await fetchWithTimeout(endpoint, {
+      service: "OpenStreetMap (Overpass)",
+      timeoutMs: 25_000,
+      method: "POST",
+      signal: controllers[i].signal,
+      headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({ data: query }).toString(),
+    });
+    if (isUnavailableStatus(res.status)) throw new ProviderUnavailableError(`Overpass occupato o non disponibile (HTTP ${res.status})`);
+    if (!res.ok) throw new SearchError("La ricerca su OpenStreetMap non è valida. Prova con parole diverse.");
+    const data = (await res.json().catch(() => null)) as { elements?: OverpassElement[]; remark?: string } | null;
+    if (!data) throw new ProviderUnavailableError("Risposta Overpass non leggibile");
+    if (!data.elements?.length && data.remark?.includes("timed out")) throw new ProviderUnavailableError("Overpass ha superato il tempo massimo");
+    return parseOverpass(data, opts.center, opts.category);
+  };
+
+  try {
+    const results = await Promise.any(OVERPASS_ENDPOINTS.map(attempt));
+    return results;
+  } catch (err) {
+    const errors = err instanceof AggregateError ? err.errors : [err];
+    const searchError = errors.find((e) => e instanceof SearchError && !(e instanceof ProviderUnavailableError));
+    if (searchError) throw searchError;
+    throw new ProviderUnavailableError("OpenStreetMap non è raggiungibile");
+  } finally {
+    controllers.forEach((c) => c.abort());
   }
-  throw lastError instanceof ProviderUnavailableError ? lastError : new ProviderUnavailableError("OpenStreetMap non è raggiungibile");
 }
