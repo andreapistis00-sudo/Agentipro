@@ -61,7 +61,7 @@ export default async function OpengraphImage() {
         </div>
 
         {/* Testo */}
-        <div style={{ display: "flex", flexDirection: "column", padding: "64px 72px", width: 760, height: "100%", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", padding: "64px 72px", width: 720, height: "100%", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <svg width="48" height="48" viewBox="0 0 32 32">
               <rect width="32" height="32" rx="9" fill={INK} />
@@ -71,8 +71,8 @@ export default async function OpengraphImage() {
             <div style={{ fontSize: 30, color: INK, letterSpacing: -0.5 }}>Agentipro</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "Instrument Serif", fontSize: 112, lineHeight: 0.92, color: INK, letterSpacing: -2 }}>Meno giri a vuoto.</div>
-            <div style={{ fontFamily: "Instrument Serif Italic", fontSize: 112, lineHeight: 0.98, color: ACCENT, letterSpacing: -2 }}>Più strette di mano.</div>
+            <div style={{ fontFamily: "Instrument Serif", fontSize: 86, lineHeight: 0.95, color: INK, letterSpacing: -2 }}>Meno giri a vuoto.</div>
+            <div style={{ fontFamily: "Instrument Serif Italic", fontSize: 86, lineHeight: 1.02, color: ACCENT, letterSpacing: -2 }}>Più strette di mano.</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "Geist Mono", fontSize: 18, letterSpacing: 2.5, color: INK2, borderTop: `2px solid ${LINE}`, paddingTop: 22, width: 600 }}>
             IL CRM CON L&apos;AI PER AGENTI DI COMMERCIO

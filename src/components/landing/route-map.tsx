@@ -140,9 +140,9 @@ export function RouteMap() {
             return (
               <motion.g
                 key={s.n}
-                initial={reduce ? false : { opacity: 0, scale: 0.4 }}
+                initial={{ opacity: 0, scale: 0.4 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: reduce ? 0 : 0.6 + (drawDur * (i + 1)) / 5.3, type: "spring", stiffness: 320, damping: 18 }}
+                transition={reduce ? { duration: 0 } : { delay: 0.6 + (drawDur * (i + 1)) / 5.3, type: "spring", stiffness: 320, damping: 18 }}
                 style={{ transformBox: "fill-box", transformOrigin: "center" }}
               >
                 {isActive && <circle cx={s.x} cy={s.y} r="16" fill="var(--accent)" className="lp-pulse" />}
@@ -178,18 +178,18 @@ export function RouteMap() {
         aria-live="polite"
       >
         <motion.div
-          initial={reduce ? false : { opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: reduce ? 0 : 2.2, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
+          transition={reduce ? { duration: 0 } : { delay: 2.2, duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
           className="rounded-2xl border border-line-strong bg-surface p-4 shadow-[var(--shadow-md)]"
         >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={stop.n}
-              initial={reduce ? false : { opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduce ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.35 }}
+              transition={{ duration: reduce ? 0 : 0.35 }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -216,9 +216,9 @@ export function RouteMap() {
 
       {/* Promemoria che arriva */}
       <motion.div
-        initial={reduce ? false : { opacity: 0, x: 20 }}
+        initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: reduce ? 0 : 3.2, duration: 0.6 }}
+        transition={reduce ? { duration: 0 } : { delay: 3.2, duration: 0.6 }}
         className="absolute -left-16 top-[44%] hidden w-[220px] -rotate-[1.5deg] rounded-xl border border-line bg-surface px-3.5 py-3 shadow-[var(--shadow-md)] xl:block"
         aria-hidden
       >
@@ -230,7 +230,7 @@ export function RouteMap() {
 }
 
 function ScoreDial({ score, animateIn }: { score: number; animateIn: boolean }) {
-  const [shown, setShown] = useState(animateIn ? 0 : score);
+  const [shown, setShown] = useState(0);
   useEffect(() => {
     if (!animateIn) { setShown(score); return; }
     const c = animate(0, score, { duration: 1.1, ease: [0.2, 0.7, 0.2, 1], onUpdate: (v) => setShown(Math.round(v)) });

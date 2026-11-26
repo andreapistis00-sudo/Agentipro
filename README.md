@@ -31,6 +31,7 @@ Apri http://localhost:3000. Con il seed puoi accedere come `demo@agentipro.it` /
 | Variabile | Obbligatoria | Descrizione |
 |---|---|---|
 | `DATABASE_URL` | sì | Percorso del database SQLite (`file:./dev.db`). |
+| `APP_URL` | in produzione | URL pubblico, usato per le anteprime social (default `http://localhost:3000`). |
 | `AUTH_SECRET` | sì in produzione | Segreto per firmare la sessione (`openssl rand -base64 32`). |
 | `ANTHROPIC_API_KEY` | no | Chiave per Claude. Senza chiave le funzioni AI girano in **modalità demo** con risposte di esempio. |
 | `AI_MODEL_SMART` | no | Modello per chat e briefing (default `claude-opus-5-5`). |
