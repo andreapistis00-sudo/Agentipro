@@ -1,0 +1,94 @@
+/* Stili specifici della landing. Solo token del design system: niente colori fuori palette. */
+
+.lp {
+  position: relative;
+  overflow-x: clip;
+  --lp-gutter: 1.25rem;
+}
+@media (min-width: 640px) { .lp { --lp-gutter: 2rem; } }
+
+/* Grana della carta: rumore SVG inline, leggerissimo. */
+.lp-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0.055;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lp-grain::before { mix-blend-mode: screen; opacity: 0.035; filter: invert(1); }
+}
+:root[data-theme="dark"] .lp-grain::before { mix-blend-mode: screen; opacity: 0.035; filter: invert(1); }
+
+/* Pagina a righe del taccuino, con il margine in arancio. */
+.lp-ruled {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(to right, transparent 0, transparent calc(var(--lp-margin, 84px) - 1px), color-mix(in oklab, var(--accent) 45%, transparent) calc(var(--lp-margin, 84px) - 1px), color-mix(in oklab, var(--accent) 45%, transparent) var(--lp-margin, 84px), transparent var(--lp-margin, 84px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--line) 31px, var(--line) 32px);
+}
+
+/* Fori del quaderno ad anelli */
+.lp-holes {
+  background-image: radial-gradient(circle at center, var(--bg) 0 5px, var(--line-strong) 5px 6px, transparent 6.5px);
+  background-size: 100% 64px;
+  background-repeat: repeat-y;
+}
+
+/* Nastro scorrevole delle categorie */
+.lp-marquee { mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent); }
+.lp-marquee-track { animation: lp-marquee 48s linear infinite; }
+.lp-marquee:hover .lp-marquee-track { animation-play-state: paused; }
+@keyframes lp-marquee { to { transform: translateX(-50%); } }
+
+/* Etichette sulla mappa: troppo piccole su telefono, le mostriamo da 640px. */
+.lp-map-label { display: none; }
+@media (min-width: 560px) { .lp-map-label { display: inline; } }
+.lp-halo { paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+
+/* FAQ: <details> nativo, accessibile, con un'apertura morbida dove supportata. */
+.lp-faq summary { list-style: none; }
+.lp-faq summary::-webkit-details-marker { display: none; }
+.lp-faq .lp-faq-icon { transition: transform 0.3s cubic-bezier(.2,.7,.2,1); }
+.lp-faq[open] .lp-faq-icon { transform: rotate(45deg); }
+@supports (interpolate-size: allow-keywords) {
+  .lp { interpolate-size: allow-keywords; }
+  .lp-faq::details-content { height: 0; overflow: clip; transition: height 0.35s cubic-bezier(.2,.7,.2,1), content-visibility 0.35s allow-discrete; }
+  .lp-faq[open]::details-content { height: auto; }
+}
+
+/* Pulsazione del pin attivo */
+.lp-pulse { transform-box: fill-box; transform-origin: center; animation: lp-pulse 1.8s cubic-bezier(.2,.7,.2,1) infinite; }
+@keyframes lp-pulse { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(2.4); opacity: 0; } }
+
+/* Indicatore "sta scrivendo" */
+.lp-typing span { animation: lp-blink 1.2s infinite ease-in-out both; }
+.lp-typing span:nth-child(2) { animation-delay: .15s; }
+.lp-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes lp-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+/* Sottolineatura "a pennarello" sotto le parole chiave */
+.lp-mark {
+  background-image: linear-gradient(to top, color-mix(in oklab, var(--accent) 28%, transparent) 0 0.28em, transparent 0.28em);
+  padding-inline: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee-track, .lp-pulse, .lp-typing span { animation: none !important; }
+}
+
+/* Testo su fascia arancio: inchiostro scuro in entrambi i temi (contrasto AA). */
+.lp-on-accent { --lp-ink: #15140f; color: var(--lp-ink); }
+.lp-on-accent { --lp-paper: #f4f2ec; }
+.lp-on-accent :focus-visible { outline-color: var(--lp-ink); }
+
+/* Scontrino del bar: bordo inferiore seghettato */
+.lp-receipt {
+  background: var(--lp-paper);
+  color: var(--lp-ink);
+  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 9px) no-repeat, conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 14px 9px repeat-x;
+  mask: linear-gradient(#000 0 0) top / 100% calc(100% - 9px) no-repeat, conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 14px 9px repeat-x;
+}
