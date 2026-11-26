@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  // Profilo commerciale: dà contesto all'AI
+  company       String?
+  sector        String?  // settore/mandato (es. "Forniture Horeca")
+  products      String?  // cosa vende, listino a parole
+  idealCustomer String?  // cliente ideale
+  territory     String?  // zona di lavoro (es. "Milano e provincia")
+  tone          String?  // tono preferito dei messaggi
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  leads         Lead[]
+  activities    Activity[]
+  conversations Conversation[]
+  searches      SavedSearch[]
+}
+
+model Lead {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String
+  category      String?
+  address       String?
+  city          String?
+  lat           Float?
+  lng           Float?
+  phone         String?
+  email         String?
+  website       String?
+  openingHours  String?
+  rating        Float?
+  reviewsCount  Int?
+  source        String    @default("manual") // osm | google | demo | manual | csv
+  sourceId      String?
+
+  // CRM
+  stage         String    @default("new") // new | contacted | qualified | negotiation | won | lost
+  position      Int       @default(0)       // ordine nella colonna pipeline
+  value         Float?                       // valore potenziale in €
+  contactName   String?
+  contactRole   String?
+  notes         String?
+  tags          String?                      // csv di tag
+  nextFollowUp  DateTime?
+  lostReason    String?
+
+  // AI
+  score         Int?                         // 0-100
+  scoreReason   String?                      // JSON {summary, factors[]}
+  scoredAt      DateTime?
+  briefing      String?                      // JSON del briefing pre-visita
+  briefingAt    DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  activities    Activity[]
+
+  @@unique([userId, source, sourceId])
+  @@index([userId, stage])
+}
+
+model Activity {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leadId    String
+  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String    // note | call | email | meeting | task | stage
+  content   String
+  dueAt     DateTime?
+  done      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, dueAt])
+  @@index([leadId])
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("Nuova conversazione")
+  leadId    String?   // conversazione legata a un lead (opzionale)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // user | assistant
+  content        String       // testo visibile
+  raw            String?      // JSON dei content block API (per replay)
+  createdAt      DateTime     @default(now())
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String
+  location  String
+  radiusKm  Float    @default(5)
+  results   Int      @default(0)
+  createdAt DateTime @default(now())
+}
