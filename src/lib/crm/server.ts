@@ -15,7 +15,7 @@ export function toLeadDTO(l: Lead): LeadDTO {
     phone: l.phone, email: l.email, website: l.website, openingHours: l.openingHours, rating: l.rating,
     reviewsCount: l.reviewsCount, source: l.source, stage: l.stage, position: l.position, value: l.value,
     contactName: l.contactName, contactRole: l.contactRole, notes: l.notes, tags: parseTags(l.tags),
-    nextFollowUp: iso(l.nextFollowUp), lostReason: l.lostReason, score: l.score, scoreReason: l.scoreReason,
+    nextFollowUp: iso(l.nextFollowUp), lostReason: l.lostReason, score: l.score, scoreReason: l.scoreReason, scoreBreakdown: l.scoreBreakdown,
     scoredAt: iso(l.scoredAt), briefing: l.briefing, briefingAt: iso(l.briefingAt),
     createdAt: l.createdAt.toISOString(), updatedAt: l.updatedAt.toISOString(),
   };

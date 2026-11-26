@@ -2,7 +2,7 @@ import { Lock, Smartphone, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Container, H2, Kicker } from "./shared";
 import { Reveal } from "./reveal";
-import { BriefingMock, ChatMock, PipelineMock, ScoreMock, SearchMock } from "./mockups";
+import { ChatMock, PipelineMock, ResearchMock, ScoreMock, SearchMock } from "./mockups";
 
 type Feature = {
   id: string;
@@ -17,33 +17,33 @@ const FEATURES: Feature[] = [
   {
     id: "trova",
     tag: "Trova clienti",
-    title: <>Scrivi «bar», scegli la città. <em className="italic text-ink-2">Ecco il tuo territorio.</em></>,
-    body: "Cerchi per categoria, città e raggio e ottieni l'elenco delle attività reali della zona, da OpenStreetMap e, se vuoi, da Google Places: telefono, sito, orari, distanza da te. Quelle buone finiscono nel CRM con un clic, senza doppioni.",
+    title: <>Scrivi «bar», scegli la città. <em className="italic text-ink-2">Ecco le attività della zona.</em></>,
+    body: "Cerchi per categoria, città e raggio e ottieni l'elenco delle attività reali della zona, da OpenStreetMap e, se vuoi, da Google Places: telefono, sito, orari, distanza da te. Quelle che ti interessano finiscono nel CRM con un clic, senza doppioni.",
     facts: ["Attività reali, non elenchi comprati", "Raggio a scelta", "Zero copia-incolla"],
     mock: <SearchMock />,
   },
   {
-    id: "score",
-    tag: "Lead score",
-    title: <>Un numero da 0 a 100. <em className="italic text-ink-2">E il perché.</em></>,
-    body: "Ogni lead riceve un punteggio calibrato su cosa vendi e su chi è il tuo cliente ideale. Niente scatole nere: vedi i motivi, uno per uno. Così la mattina sai chi chiamare per primo, e chi può aspettare.",
-    facts: ["Motivi a favore e contro", "Tarato sul tuo listino", "Si aggiorna con le note"],
-    mock: <ScoreMock />,
+    id: "scheda",
+    tag: "Scheda AI",
+    title: <>Quello che il web sa di un&apos;attività, <em className="italic text-ink-2">in una scheda sola.</em></>,
+    body: "Con un clic l'AI cerca sito, schede su Google, TripAdvisor e PagineGialle, social e notizie. Ottieni cosa fa l'attività, orari e sedi, titolari citati pubblicamente, cosa dicono le recensioni nel bene e nel male, fatti recenti e segnali utili. Ogni informazione ha la sua fonte; quello che non si trova resta tra le cose da verificare.",
+    facts: ["Una fonte per ogni dato", "Recensioni: pro e contro", "Recapiti da salvare in scheda"],
+    mock: <ResearchMock />,
   },
   {
-    id: "briefing",
-    tag: "Briefing pre-visita",
-    title: <>Due minuti in macchina. <em className="italic text-ink-2">Entri come se lo conoscessi da anni.</em></>,
-    body: "Prima di scendere, una scheda con quello che conta: cosa fa l'attività (anche dal web), la frase d'apertura, i punti da toccare, le obiezioni probabili con la risposta pronta, l'offerta da proporre e le domande da fare.",
-    facts: ["Apertura su misura", "Obiezioni e risposte", "Offerta e domande"],
-    mock: <BriefingMock />,
+    id: "score",
+    tag: "Punteggio AI",
+    title: <>Un punteggio da 0 a 100, <em className="italic text-ink-2">con i tuoi criteri.</em></>,
+    body: "Ogni cliente è valutato su sei dimensioni: aderenza a ciò che vendi, dimensione, reputazione, presenza online, vicinanza al tuo territorio e completezza dei dati. Scrivi con parole tue cosa conta e regola il peso di ogni dimensione: il totale è la media pesata e si ricalcola subito su tutti i clienti.",
+    facts: ["Sei dimensioni", "Pesi regolabili", "Una motivazione per ogni voce"],
+    mock: <ScoreMock />,
   },
   {
     id: "assistente",
     tag: "Assistente",
-    title: <>Chiedi come lo chiederesti <em className="italic text-ink-2">a un collega esperto.</em></>,
-    body: "Una chat che conosce il tuo CRM. «Chi dovrei richiamare oggi?», «Scrivimi un WhatsApp per Rinaldi», «Preparami il giro di giovedì a Verona». Scrive email e messaggi, risponde alle obiezioni e, quando serve, cerca sul web.",
-    facts: ["Conosce clienti e note", "Email e messaggi pronti", "Piano visite"],
+    title: <>Chiedi al tuo CRM <em className="italic text-ink-2">come lo chiederesti a voce.</em></>,
+    body: "Una chat che conosce clienti, note e punteggi e sa cercare sul web. «Cosa sai della Pasticceria Rinaldi?», «Quali clienti in Trattativa non sento da due settimane?», «Confronta i miei cinque clienti con il punteggio più alto». Su richiesta registra note e promemoria.",
+    facts: ["Conosce clienti e note", "Cerca sul web, con le fonti", "Note e promemoria"],
     mock: <ChatMock />,
   },
   {
@@ -70,11 +70,11 @@ export function Features() {
           <div>
             <Kicker n="02">Cosa fa</Kicker>
             <H2 id="lp-feat-title" className="mt-6 max-w-[14ch]">
-              Il collega che ha già <span className="italic text-accent">fatto i compiti.</span>
+              Cinque strumenti, <span className="italic text-accent">un solo posto.</span>
             </H2>
           </div>
           <p className="max-w-sm text-[16.5px] leading-relaxed text-ink-2 lg:pb-2">
-            Cinque attrezzi nella stessa borsa. Dalla prima ricerca alla firma, senza saltare da un foglio Excel a una rubrica a un post-it.
+            Ricerca, informazioni sul cliente, punteggio, assistente e CRM: dalla prima ricerca alla trattativa, senza saltare da un foglio Excel a una rubrica a un post-it.
           </p>
         </div>
 

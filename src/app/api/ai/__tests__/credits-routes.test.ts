@@ -24,7 +24,7 @@ vi.mock("@/lib/ai", () => ({ isAiDemo: () => m.demo }));
 vi.mock("@/lib/ai/client", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/client")>()), aiRateLimit: () => null }));
 vi.mock("@/lib/ai/score", () => ({ scoreLeads: m.scoreLeads }));
 vi.mock("@/lib/ai/chat", () => ({ runChat: m.runChat, userRaw: (s: string) => s }));
-vi.mock("@/lib/ai/briefing", () => ({ generateBriefing: m.generateBriefing, loadLeadForBriefing: async () => ({ id: "l1", name: "Bar" }) }));
+vi.mock("@/lib/ai/research", () => ({ generateResearch: m.generateBriefing, loadLeadForResearch: async () => ({ id: "l1", name: "Bar" }) }));
 vi.mock("@/lib/credits", async (orig) => ({
   ...(await orig<typeof import("@/lib/credits")>()),
   chargeForAi: m.chargeForAi,

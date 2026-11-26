@@ -64,15 +64,42 @@ test.describe("Scheda cliente", () => {
     await expect(page.getByRole("img", { name: /^Punteggio \d+ su 100$/ })).toBeVisible();
   });
 
-  test("'Prepara la visita' genera il briefing (demo)", async ({ page, api }) => {
-    const lead = await createLead(api, { name: "Osteria del Ponte", category: "Ristorante", city: "Bologna" });
+  test("'Valuta' mostra le sei dimensioni e l'affidabilità (demo)", async ({ page, api }) => {
+    const lead = await createLead(api, { name: "Bar Luna", category: "Bar", city: "Milano", phone: "02 7654321", website: "barluna.it" });
     await page.goto(`/app/leads/${lead.id}`);
-    await page.getByRole("button", { name: "Prepara la visita" }).click();
-    await expect(page.getByRole("button", { name: "Rigenera" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("button", { name: "Copia la frase d'apertura" })).toBeVisible();
-    await expect(page.getByText("Prossimo passo")).toBeVisible();
+    await page.getByRole("button", { name: "Valuta", exact: true }).click();
+    const bars = page.getByRole("list", { name: "Punteggio per dimensione" });
+    await expect(bars).toBeVisible();
+    for (const d of ["Aderenza", "Dimensione", "Reputazione", "Presenza online", "Vicinanza", "Completezza dati"]) {
+      await expect(bars.getByRole("img", { name: new RegExp(`^${d}: \\d+ su 100$`) })).toBeVisible();
+    }
+    await expect(page.getByText(/^Affidabilità (alta|media|bassa)$/).first()).toBeVisible();
+  });
+
+  test("'Cerca informazioni' compila la Scheda AI (demo) e propone i recapiti trovati", async ({ page, api }) => {
+    const lead = await createLead(api, { name: "Osteria del Ponte", category: "Ristorante", city: "Bologna", contactName: "Luca Neri" });
+    await page.goto(`/app/leads/${lead.id}`);
+    await expect(page.getByRole("heading", { name: "Scheda AI" })).toBeVisible();
+    await page.getByRole("button", { name: "Cerca informazioni" }).click();
+    await expect(page.getByRole("button", { name: "Aggiorna" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Da verificare")).toBeVisible();
+    await expect(page.getByText("Fonti", { exact: true })).toBeVisible();
+    await expect(page.getByText("Luca Neri").first()).toBeVisible();
+    // niente coaching nella scheda
+    await expect(page.getByText(/frase d'apertura|obiezion|prossimo passo/i)).toHaveCount(0);
 
     await page.reload();
-    await expect(page.getByRole("button", { name: "Rigenera" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Aggiorna" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Copia" })).toBeVisible();
+  });
+
+  test("una scheda della versione precedente non rompe la pagina", async ({ page, api }) => {
+    const lead = await createLead(api, { name: "Bar Vecchio" });
+    const { db } = await import("./db");
+    await db.lead.update({ where: { id: lead.id }, data: { briefing: JSON.stringify({ snapshot: "x", openingLine: "Buongiorno" }), briefingAt: new Date() } });
+    await page.goto(`/app/leads/${lead.id}`);
+    await expect(page.getByText("Scheda creata con la versione precedente")).toBeVisible();
+    await page.getByRole("button", { name: "Aggiorna" }).click();
+    await expect(page.getByRole("button", { name: "Copia" })).toBeVisible({ timeout: 30_000 });
   });
 });

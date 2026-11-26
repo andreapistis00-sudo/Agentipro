@@ -13,9 +13,9 @@ import { FinalCta } from "@/components/landing/final-cta";
 import { LandingFooter } from "@/components/landing/footer";
 import "@/components/landing/landing.css";
 
-const TITLE = "Agentipro — Meno giri a vuoto, più strette di mano";
+const TITLE = "Agentipro — Trova clienti nella tua zona e conoscili con l'AI";
 const DESCRIPTION =
-  "Il CRM con l'AI per agenti di commercio: trova le attività della tua zona, scopri chi chiamare per primo con il lead score e arriva a ogni visita con un briefing pronto.";
+  "Il CRM con l'AI per agenti di commercio: trova le attività della tua zona, raccogli dal web informazioni, recensioni e persone di ognuna, valutale con un punteggio basato sui tuoi criteri e organizzale in pipeline.";
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },

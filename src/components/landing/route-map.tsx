@@ -19,11 +19,11 @@ type Stop = {
 };
 
 const STOPS: Stop[] = [
-  { n: 1, x: 236, y: 190, name: "Bar Centrale", kind: "Bar caffetteria", street: "Piazza Duomo 4", km: "0,8 km", score: 82, why: ["Aperto 6:30–21, molto passaggio", "Usa ancora un fornitore unico"], labelDx: -22, labelDy: -6, anchor: "end" },
+  { n: 1, x: 236, y: 190, name: "Bar Centrale", kind: "Bar caffetteria", street: "Piazza Duomo 4", km: "0,8 km", score: 82, why: ["Aperto 6:30–21, 7 giorni su 7", "4,6/5 su 320 recensioni"], labelDx: -22, labelDy: -6, anchor: "end" },
   { n: 2, x: 372, y: 148, name: "Salone Elsa", kind: "Parrucchiere", street: "Via Mazzini 31", km: "1,4 km", score: 74, why: ["4 postazioni, sito aggiornato", "Recensioni in crescita"], labelDx: 22, labelDy: -10 },
-  { n: 3, x: 452, y: 292, name: "Studio Dentistico Ferri", kind: "Studio dentistico", street: "Viale Venezia 12", km: "2,1 km", score: 91, why: ["Seconda sede appena aperta", "Profilo identico al tuo cliente ideale"], labelDx: -24, labelDy: 5, anchor: "end" },
-  { n: 4, x: 316, y: 354, name: "Pasticceria Rinaldi", kind: "Pasticceria", street: "Corso Garibaldi 8", km: "2,6 km", score: 88, why: ["Laboratorio interno, 2 punti vendita", "Ti ha già risposto una volta"], labelDx: -22, labelDy: 24, anchor: "end" },
-  { n: 5, x: 160, y: 478, name: "Ferramenta Bonetti", kind: "Ferramenta", street: "Via del Porto 2", km: "3,9 km", score: 63, why: ["Attività storica, decide il titolare", "Orari ridotti il lunedì"], labelDx: -12, labelDy: -26 },
+  { n: 3, x: 452, y: 292, name: "Studio Dentistico Ferri", kind: "Studio dentistico", street: "Viale Venezia 12", km: "2,1 km", score: 91, why: ["Seconda sede aperta a settembre", "In linea con il tuo cliente ideale"], labelDx: -24, labelDy: 5, anchor: "end" },
+  { n: 4, x: 316, y: 354, name: "Pasticceria Rinaldi", kind: "Pasticceria", street: "Corso Garibaldi 8", km: "2,6 km", score: 88, why: ["Laboratorio interno, 2 punti vendita", "Titolare citata dal giornale locale"], labelDx: -22, labelDy: 24, anchor: "end" },
+  { n: 5, x: 160, y: 478, name: "Ferramenta Bonetti", kind: "Ferramenta", street: "Via del Porto 2", km: "3,9 km", score: 63, why: ["Attività storica, dal 1962", "Orari ridotti il lunedì"], labelDx: -12, labelDy: -26 },
 ];
 
 const ROUTE =
@@ -205,7 +205,7 @@ export function RouteMap() {
                 ))}
               </ul>
               <div className="mt-3 flex items-center gap-2 text-[11.5px]">
-                <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-1 font-medium text-accent"><NotebookPen className="h-3 w-3" aria-hidden />Briefing pronto</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-1 font-medium text-accent"><NotebookPen className="h-3 w-3" aria-hidden />Scheda AI pronta</span>
                 <span className="inline-flex items-center gap-1 text-ink-3"><Phone className="h-3 w-3" aria-hidden />Chiama</span>
                 <span className="inline-flex items-center gap-1 text-ink-3"><Clock className="h-3 w-3" aria-hidden />Aperto</span>
               </div>

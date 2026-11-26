@@ -14,7 +14,7 @@ export function LandingFooter() {
         <div className="max-w-xs">
           <Logo />
           <p className="mt-4 font-display text-[22px] italic leading-snug text-ink-2">
-            Il copilota di chi macina chilometri per vendere.
+            Trova le attività della tua zona e conoscile con l&apos;AI.
           </p>
         </div>
         {COLS.map((c) => (

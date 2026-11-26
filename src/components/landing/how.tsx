@@ -2,9 +2,9 @@ import { Container, H2, Kicker } from "./shared";
 import { Reveal } from "./reveal";
 
 const STEPS = [
-  { h: "Racconta cosa vendi", p: "Prodotti, zona, cliente ideale, il tuo modo di parlare. Lo fai una volta: da lì l'AI calibra punteggi, briefing e messaggi.", m: "≈ 5 minuti, una volta sola" },
+  { h: "Racconta cosa vendi", p: "Prodotti, zona, cliente ideale e i criteri con cui valuti un cliente, con il peso di ciascuno. Lo fai una volta: il punteggio si basa su questo.", m: "≈ 5 minuti, una volta sola" },
   { h: "Cerca la tua zona", p: "Categoria, città, raggio. Salvi le attività che ti interessano e le ritrovi nel CRM già ordinate per punteggio.", m: "≈ 10 minuti per zona" },
-  { h: "Esci con il giro pronto", p: "Briefing, piano visite, promemoria. Dopo ogni visita una nota veloce, e la pipeline si tiene in ordine da sola.", m: "ogni mattina" },
+  { h: "Conosci e organizza", p: "Apri la Scheda AI dei clienti che ti interessano, chiedi all'assistente, segna note e promemoria. La pipeline resta in ordine.", m: "ogni giorno" },
 ];
 
 export function How() {
@@ -13,7 +13,7 @@ export function How() {
       <Container>
         <Kicker n="04">Come funziona</Kicker>
         <H2 id="lp-how-title" className="mt-6">
-          Tre passi. <span className="italic text-ink-2">Il quarto è la firma.</span>
+          Tre passi, <span className="italic text-ink-2">dal profilo alla pipeline.</span>
         </H2>
 
         <ol className="relative mt-16 grid gap-12 md:grid-cols-3 md:gap-8">

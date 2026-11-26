@@ -4,7 +4,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { STAGE_IDS, stageLabel } from "@/lib/utils";
 import { addDays, dayKey, romeMidnight } from "@/lib/crm/format";
-import type { ChatAction } from "./schemas";
+import { researchOf, type ChatAction } from "./schemas";
+import { SCORE_DIMENSIONS, parseScoreBreakdown } from "./scoring";
 
 /* --------------------------------- Schemi input --------------------------------- */
 
@@ -16,6 +17,7 @@ export const SearchLeadsInput = z.object({
   minScore: z.number().min(0).max(100).optional(),
   city: z.string().max(80).optional(),
   orderBy: z.enum(["score", "recent", "followup"]).optional(),
+  notContactedForDays: z.number().int().min(1).max(730).optional(),
   limit: z.number().int().min(1).max(25).optional(),
 });
 export const LeadIdInput = z.object({ leadId: z.string().min(1).max(64) });
@@ -41,7 +43,7 @@ export const CRM_TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: "search_crm_leads",
     description:
-      "Cerca tra i clienti e potenziali clienti nel CRM dell'agente. Usalo ogni volta che l'utente chiede chi contattare, quali clienti ha in una zona o categoria, le priorità, o nomina un cliente di cui ti serve l'id. Restituisce un elenco sintetico (id, nome, categoria, città, fase, punteggio, prossimo follow-up). " +
+      "Cerca tra i clienti e potenziali clienti nel CRM dell'agente. Usalo ogni volta che l'utente chiede quali clienti ha in una zona o categoria, chi non sente da tempo, chi ha il punteggio più alto, o nomina un cliente di cui ti serve l'id. Restituisce un elenco sintetico (id, nome, categoria, città, fase, punteggio con sotto-punteggi per dimensione, data dell'ultimo contatto, prossimo follow-up). " +
       stageDescription,
     eager_input_streaming: true,
     input_schema: {
@@ -52,6 +54,7 @@ export const CRM_TOOLS: Anthropic.Beta.BetaTool[] = [
         minScore: { type: "number", description: "Punteggio AI minimo (0-100)" },
         city: { type: "string", description: "Filtra per città" },
         orderBy: { type: "string", enum: ["score", "recent", "followup"], description: "Ordinamento: punteggio (default), più recenti, follow-up più vicino" },
+        notContactedForDays: { type: "integer", description: "Solo clienti senza chiamate, email o visite registrate negli ultimi N giorni (es. 14 = due settimane)" },
         limit: { type: "integer", description: "Numero massimo di risultati (1-25, default 10)" },
       },
       additionalProperties: false,
@@ -60,7 +63,7 @@ export const CRM_TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: "get_lead_details",
     description:
-      "Restituisce la scheda completa di un cliente del CRM (contatti, fase, valore, note, punteggio con motivazione) e le sue ultime 10 attività. Usalo prima di scrivere un messaggio personalizzato o di dare consigli su un cliente specifico.",
+      "Restituisce la scheda completa di un cliente del CRM (contatti, fase, valore, note, punteggio con sotto-punteggi e motivazioni, Scheda AI con le informazioni pubbliche già raccolte) e le sue ultime 10 attività. Usalo ogni volta che l'utente chiede di un cliente specifico.",
     eager_input_streaming: true,
     input_schema: {
       type: "object",
@@ -164,9 +167,9 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
       case "search_crm_leads": {
         const p = SearchLeadsInput.safeParse(input ?? {});
         if (!p.success) return fail(name, "Ricerca nel CRM", `Input non valido: ${p.error.issues[0]?.message}`);
-        const { q, stage, minScore, city, orderBy = "score", limit = 10 } = p.data;
+        const { q, stage, minScore, city, orderBy = "score", limit = 10, notContactedForDays } = p.data;
         const term = q?.trim();
-        const leads = await db.lead.findMany({
+        const rows = await db.lead.findMany({
           where: {
             userId,
             ...(stage && { stage }),
@@ -183,9 +186,16 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
             orderBy === "recent" ? [{ updatedAt: "desc" }]
             : orderBy === "followup" ? [{ nextFollowUp: { sort: "asc", nulls: "last" } }]
             : [{ score: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
-          take: limit,
-          select: { id: true, name: true, category: true, city: true, stage: true, score: true, value: true, nextFollowUp: true, phone: true, contactName: true, updatedAt: true },
+          take: notContactedForDays ? 500 : limit,
+          select: {
+            id: true, name: true, category: true, city: true, stage: true, score: true, scoreBreakdown: true, value: true, nextFollowUp: true,
+            phone: true, contactName: true, updatedAt: true,
+            activities: { where: { type: { in: ["call", "email", "meeting"] } }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+          },
         });
+        const cutoff = notContactedForDays ? now.getTime() - notContactedForDays * 86400000 : null;
+        const lastContact = (l: (typeof rows)[number]) => l.activities?.[0]?.createdAt ?? null;
+        const leads = (cutoff == null ? rows : rows.filter((l) => { const d = lastContact(l); return !d || d.getTime() < cutoff; })).slice(0, limit);
         const total = await db.lead.count({ where: { userId } });
         return {
           content: JSON.stringify({
@@ -193,7 +203,8 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
             count: leads.length,
             leads: leads.map((l) => ({
               id: l.id, name: l.name, category: l.category, city: l.city, stage: l.stage, stageLabel: stageLabel(l.stage),
-              score: l.score, value: l.value, nextFollowUp: day(l.nextFollowUp), hasPhone: Boolean(l.phone), contactName: l.contactName,
+              score: l.score, scoreDimensions: dimsOf(l.scoreBreakdown), value: l.value, nextFollowUp: day(l.nextFollowUp),
+              lastContactAt: day(lastContact(l)), hasPhone: Boolean(l.phone), contactName: l.contactName,
             })),
           }),
           isError: false,
@@ -209,14 +220,17 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
           include: { activities: { orderBy: { createdAt: "desc" }, take: 10, select: { type: true, content: true, dueAt: true, done: true, createdAt: true } } },
         });
         if (!lead) return fail(name, "Scheda cliente", "Cliente non trovato nel CRM di questo utente");
-        const { userId: _u, briefing, position: _p, activities, scoreReason, ...rest } = lead;
+        const { userId: _u, briefing, briefingAt, position: _p, activities, scoreReason, scoreBreakdown, ...rest } = lead;
         void _u; void _p;
+        const research = researchOf(briefing);
         return {
           content: JSON.stringify({
             ...rest,
             stageLabel: stageLabel(lead.stage),
             scoreReason: scoreReason ? safeJson(scoreReason) : null,
-            hasBriefing: Boolean(briefing),
+            scoreBreakdown: parseScoreBreakdown(scoreBreakdown),
+            hasResearch: Boolean(research),
+            research: research ? { ...research, updatedAt: day(briefingAt) } : null,
             activities: activities.map((a) => ({ ...a, dueAt: day(a.dueAt), createdAt: a.createdAt.toISOString() })),
           }),
           isError: false,
@@ -331,6 +345,12 @@ export async function executeCrmTool(userId: string, name: string, input: unknow
     console.error(`[ai/tools] ${name}`, err);
     return fail(name, toolStatusLabel(name).replace("…", ""), "Errore interno durante l'esecuzione dello strumento");
   }
+}
+
+/** Sotto-punteggi compatti per l'elenco (es. { Aderenza: 80, … }). */
+function dimsOf(raw: string | null) {
+  const b = parseScoreBreakdown(raw);
+  return b ? Object.fromEntries(SCORE_DIMENSIONS.map((d) => [d.label, b.dimensions[d.id].score])) : null;
 }
 
 function safeJson(s: string) {

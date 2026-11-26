@@ -65,116 +65,127 @@ export function SearchMock() {
 
 /* ------------------------------------------------------------- Lead score */
 
-const QUEUE = [
-  { s: 91, n: "Studio Dentistico Ferri", t: "hot" },
-  { s: 88, n: "Pasticceria Rinaldi", t: "hot" },
-  { s: 74, n: "Salone Elsa", t: "warm" },
-  { s: 38, n: "Bar Sport Lungolago", t: "cold" },
-] as const;
+const DIMS = [
+  { l: "Aderenza", s: 97, w: 5, r: "Studio dentistico: il tuo cliente ideale" },
+  { l: "Dimensione", s: 85, w: 3, r: "Due sedi, 6 poltrone in totale" },
+  { l: "Reputazione", s: 88, w: 3, r: "4,8/5 su 214 recensioni" },
+  { l: "Presenza online", s: 82, w: 2, r: "Sito, telefono ed email pubblici" },
+  { l: "Vicinanza", s: 96, w: 3, r: "A 2 km dal tuo giro del giovedì" },
+  { l: "Completezza dati", s: 90, w: 1, r: "Scheda AI con 7 fonti" },
+];
+
+function Dots({ n, max = 5 }: { n: number; max?: number }) {
+  return (
+    <span className="flex gap-[3px]" aria-label={`peso ${n} su ${max}`}>
+      {Array.from({ length: max }).map((_, i) => (
+        <span key={i} className={cn("h-1.5 w-1.5 rounded-full", i < n ? "bg-accent" : "bg-surface-2")} />
+      ))}
+    </span>
+  );
+}
 
 export function ScoreMock() {
   return (
     <div className="relative">
-      <Frame label="Lead score · Studio Dentistico Ferri">
-        <div className="grid gap-6 p-5 pb-14 sm:grid-cols-[auto_1fr] sm:p-6 sm:pb-16">
+      <Frame label="Punteggio AI · Studio Dentistico Ferri" right={<span className="hidden text-success sm:inline">affidabilità alta</span>}>
+        <div className="grid gap-6 p-5 pb-16 sm:grid-cols-[auto_1fr] sm:p-6 sm:pb-20">
           <div>
             <p className="font-display text-[96px] leading-[0.8] tracking-tight text-accent">91</p>
-            <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">su 100 · caldo</p>
-            <div className="mt-3 flex gap-[3px]" aria-hidden>
-              {Array.from({ length: 20 }).map((_, i) => (
-                <span key={i} className={cn("h-5 w-[5px] rounded-full", i < 18 ? "bg-accent" : "bg-surface-2")} />
-              ))}
-            </div>
+            <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">su 100 · media pesata</p>
+            <p className="mt-4 max-w-[180px] text-[12.5px] leading-snug text-ink-2">Il totale lo calcola l&apos;app, con i pesi che scegli tu.</p>
           </div>
-          <div>
-            <p className="text-[12px] font-medium text-ink-3">Perché questo punteggio</p>
-            <ul className="mt-2 space-y-2.5 text-[13.5px] leading-snug">
-              {[
-                ["+", "Seconda sede aperta a settembre: sta comprando ora"],
-                ["+", "3 poltrone, il volume giusto per il tuo listino"],
-                ["+", "Sul tuo giro del giovedì, a 2 km dal Bar Centrale"],
-                ["−", "Nessun sito: non si capisce chi lo rifornisce oggi"],
-              ].map(([sign, t]) => (
-                <li key={t} className="flex gap-2.5">
-                  <span className={cn("mt-px grid h-5 w-5 shrink-0 place-items-center rounded-md font-mono text-[12px]", sign === "+" ? "bg-success-soft text-success" : "bg-danger-soft text-danger")} aria-label={sign === "+" ? "a favore" : "contro"}>{sign}</span>
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 border-t border-dashed border-line-strong pt-3 text-[11.5px] text-ink-3">
-              Calibrato su: <span className="text-ink-2">forniture per studi dentistici</span> · cliente ideale <span className="text-ink-2">studi da 2 a 6 poltrone</span>
-            </p>
-          </div>
-        </div>
-      </Frame>
-      <Reveal delay={0.15} className="relative z-10 -mt-9 ml-auto mr-3 w-[min(300px,88%)] rotate-[-1.2deg] sm:-mt-11 sm:mr-[-20px]">
-        <div className="rounded-2xl border border-line-strong bg-surface p-4 shadow-[var(--shadow-md)]">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Da chiamare oggi</p>
-          <ol className="mt-2 space-y-1.5">
-            {QUEUE.map((q, i) => (
-              <li key={q.n} className="flex items-center gap-3 text-[13px]">
-                <span className="w-3 font-mono text-[11px] text-ink-3">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate">{q.n}</span>
-                <span className="rounded-md px-1.5 py-0.5 font-mono text-[11.5px] font-semibold tabular-nums" style={{ color: `var(--${q.t})`, background: `color-mix(in oklab, var(--${q.t}) 14%, transparent)` }}>{q.s}</span>
+          <ul className="space-y-2.5" aria-label="Punteggio per dimensione">
+            {DIMS.map((d) => (
+              <li key={d.l}>
+                <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+                  <span className="font-medium">{d.l}</span>
+                  <span className="font-mono font-semibold tabular-nums">{d.s}</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+                  <div className="h-full rounded-full" style={{ width: `${d.s}%`, background: d.s >= 75 ? "var(--hot)" : "var(--warm)" }} />
+                </div>
+                <p className="mt-0.5 truncate text-[11.5px] text-ink-3">{d.r}</p>
               </li>
             ))}
-          </ol>
+          </ul>
+        </div>
+      </Frame>
+      <Reveal delay={0.15} className="relative z-10 -mt-12 ml-auto mr-3 w-[min(290px,88%)] rotate-[-1.2deg] sm:-mt-14 sm:mr-[-20px]">
+        <div className="rounded-2xl border border-line-strong bg-surface p-4 shadow-[var(--shadow-md)]">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">I tuoi pesi · profilo</p>
+          <ul className="mt-2.5 space-y-1.5">
+            {DIMS.map((d) => (
+              <li key={d.l} className="flex items-center justify-between gap-3 text-[12.5px]">
+                <span className="min-w-0 truncate">{d.l}</span>
+                <Dots n={d.w} />
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 border-t border-dashed border-line-strong pt-2.5 text-[11.5px] leading-snug text-ink-2">
+            «Conta di più se ha almeno due sedi; meno se è una catena.»
+          </p>
         </div>
       </Reveal>
     </div>
   );
 }
 
-/* --------------------------------------------------------------- Briefing */
+/* ---------------------------------------------------------------- Scheda AI */
 
-export function BriefingMock() {
+export function ResearchMock() {
   return (
-    <Frame label="Briefing pre-visita" right={<span className="text-accent">pronto · 11:38</span>}>
+    <Frame label="Scheda AI · Pasticceria Rinaldi" right={<span className="text-success">affidabilità alta · 7 fonti</span>}>
       <div className="p-5 sm:p-7">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-line pb-4">
+        <div className="border-b border-line pb-4">
+          <p className="font-display text-[34px] leading-none">Pasticceria Rinaldi</p>
+          <p className="mt-1.5 text-[12.5px] text-ink-2">Corso Garibaldi 8 · laboratorio artigianale dal 1987 · 2 punti vendita</p>
+        </div>
+
+        <p className="mt-4 text-[14.5px] leading-relaxed">
+          Pasticceria con laboratorio interno, nota per lievitati e torte su ordinazione. Il secondo punto vendita, in Via Mazzini, è aperto da marzo 2024.
+        </p>
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <div>
-            <p className="font-display text-[34px] leading-none">Pasticceria Rinaldi</p>
-            <p className="mt-1.5 text-[12.5px] text-ink-2">Corso Garibaldi 8 · laboratorio artigianale dal 1987 · 2 punti vendita</p>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Persone</p>
+            <ul className="mt-2 space-y-1.5 text-[13.5px] leading-snug">
+              <li><span className="font-medium">Giulia Rinaldi</span> — titolare <span className="ml-1 rounded bg-info-soft px-1 font-mono text-[10px] text-info">articolo locale</span></li>
+              <li><span className="font-medium">Marco Rinaldi</span> — capo pasticcere <span className="ml-1 rounded bg-info-soft px-1 font-mono text-[10px] text-info">sito</span></li>
+            </ul>
           </div>
-          <span className="rounded-full border border-line-strong px-2.5 py-1 font-mono text-[11px] text-ink-2">score 88</span>
+          <div>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Online</p>
+            <p className="mt-2 flex items-baseline gap-1.5"><span className="font-mono text-[20px] font-semibold">4,7</span><span className="text-[12px] text-ink-3">/5 su Google · 412 recensioni</span></p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {["Sito", "Instagram", "TheFork 4,5"].map((c) => (
+                <span key={c} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-ink-2">{c}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 rounded-xl bg-surface-2 p-4 sm:grid-cols-2">
+          <div>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-success">Nelle recensioni piace</p>
+            <ul className="mt-1.5 space-y-1 text-[13px]"><li>+ Lievitati e brioche</li><li>+ Torte personalizzate</li></ul>
+          </div>
+          <div>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-danger">Critiche ricorrenti</p>
+            <ul className="mt-1.5 space-y-1 text-[13px]"><li>− Attesa al banco nel weekend</li><li>− Pochi posti a sedere</li></ul>
+          </div>
         </div>
 
         <div className="mt-5">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-accent">Frase d&apos;apertura</p>
-          <p className="mt-2 font-display text-[22px] italic leading-[1.25] sm:text-[25px]">
-            «Ho visto che col secondo negozio il laboratorio lavora per due. Per Natale vi siete già organizzati?»
-          </p>
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Fatti e segnali</p>
+          <ul className="mt-2 space-y-1.5 text-[13.5px] leading-snug">
+            <li>— Premio per il panettone artigianale a un concorso regionale, 2025 <span className="ml-1 rounded bg-info-soft px-1 font-mono text-[10px] text-info">web</span></li>
+            <li>— Aperta 7 giorni su 7, ordini online per le feste <span className="ml-1 rounded bg-info-soft px-1 font-mono text-[10px] text-info">sito</span></li>
+          </ul>
         </div>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          <div>
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Punti da toccare</p>
-            <ul className="mt-2 space-y-1.5 text-[13.5px] leading-snug">
-              <li>— Panettoni su prenotazione, li spingono sul sito <span className="ml-1 rounded bg-info-soft px-1 font-mono text-[10px] text-info">web</span></li>
-              <li>— Consegne in 48 ore anche sulla seconda sede</li>
-              <li>— Semilavorati: meno ore di laboratorio a dicembre</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Domande da fare</p>
-            <ul className="mt-2 space-y-1.5 text-[13.5px] leading-snug">
-              <li>— Quanti panettoni avete fatto l&apos;anno scorso?</li>
-              <li>— Chi decide gli acquisti per il secondo punto vendita?</li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-xl bg-surface-2 p-4">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Obiezione probabile</p>
-          <p className="mt-1.5 text-[14px] font-medium">«Abbiamo già il nostro fornitore.»</p>
-          <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">
-            <span className="text-accent">→</span> Non le chiedo di cambiarlo: proviamo una sola linea, quella delle feste, e a gennaio confrontiamo i numeri.
-          </p>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-line-strong pt-4">
-          <p className="text-[13px]"><span className="text-ink-3">Offerta: </span><span className="font-medium">Kit prova Natale · −8% sul primo ordine</span></p>
-          <span className="font-mono text-[11px] text-ink-3">lettura: 2 min</span>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-line-strong pt-4">
+          <p className="text-[13px]"><span className="text-ink-3">Da verificare: </span><span className="font-medium">numero di dipendenti</span></p>
+          <span className="font-mono text-[11px] text-ink-3">aggiornata oggi</span>
         </div>
       </div>
     </Frame>
@@ -188,31 +199,30 @@ export function ChatMock() {
     <Frame label="Assistente" right={<span className="hidden sm:inline">conosce il tuo CRM</span>}>
       <div className="space-y-3 p-4 sm:p-5">
         <Reveal y={10} className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-ink px-3.5 py-2.5 text-[13.5px] text-bg">
-          Chi dovrei richiamare oggi?
+          Quali clienti in Trattativa non sento da due settimane?
         </Reveal>
         <Reveal y={10} delay={0.25} className="max-w-[92%] rounded-2xl rounded-bl-md border border-line bg-bg px-4 py-3 text-[13.5px] leading-relaxed">
-          <p>Tre nomi, in quest&apos;ordine:</p>
-          <ol className="mt-2 space-y-1.5">
-            <li><span className="font-mono text-[12px] text-accent">1.</span> <strong className="font-semibold">Pasticceria Rinaldi</strong> — promemoria scaduto ieri, trattativa da 2.400 €.</li>
-            <li><span className="font-mono text-[12px] text-accent">2.</span> <strong className="font-semibold">Studio Ferri</strong> — score 91, non l&apos;hai ancora chiamato.</li>
-            <li><span className="font-mono text-[12px] text-accent">3.</span> <strong className="font-semibold">Salone Elsa</strong> — ha chiesto il listino 6 giorni fa.</li>
-          </ol>
-          <p className="mt-2 text-ink-2">Ti preparo il messaggio per Rinaldi?</p>
+          <p>Tre, senza chiamate, email o visite registrate dal 12 novembre:</p>
+          <ul className="mt-2 space-y-1.5">
+            <li><strong className="font-semibold">Pasticceria Rinaldi</strong> — ultimo contatto 6 nov · punteggio 88</li>
+            <li><strong className="font-semibold">Hotel Belvedere</strong> — ultimo contatto 3 nov · punteggio 79</li>
+            <li><strong className="font-semibold">Ottica Lanfranchi</strong> — nessun contatto registrato · punteggio 64</li>
+          </ul>
         </Reveal>
         <Reveal y={10} delay={0.5} className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-ink px-3.5 py-2.5 text-[13.5px] text-bg">
-          Sì, WhatsApp, breve e cordiale.
+          Cosa sai dell&apos;Hotel Belvedere?
         </Reveal>
-        <Reveal y={10} delay={0.75} className="max-w-[92%] rounded-2xl rounded-bl-md border border-dashed border-line-strong bg-surface px-4 py-3 text-[13.5px] leading-relaxed">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">Bozza</p>
-          <p className="mt-1">Buongiorno Giulia! Come promesso le giro il listino di Natale con il kit prova. Se le va passo giovedì mattina, così lo guardiamo insieme davanti a un caffè.</p>
+        <Reveal y={10} delay={0.75} className="max-w-[92%] rounded-2xl rounded-bl-md border border-line bg-bg px-4 py-3 text-[13.5px] leading-relaxed">
+          <p>Tre stelle, 42 camere, ristrutturato nel 2025. Su Google 4,4/5 su 860 recensioni: apprezzate colazione e posizione, critiche sul parcheggio.</p>
+          <p className="mt-2 font-mono text-[11px] text-ink-3">Fonti: sito ufficiale · Google · Booking</p>
         </Reveal>
         <div className="flex flex-wrap gap-1.5 pt-1">
-          {["Piano visite di giovedì", "Rispondi a «costa troppo»", "Cerca sul web"].map((c) => (
+          {["Confronta i 5 con punteggio più alto", "Riassumi le note su Rinaldi", "Cerca sul web"].map((c) => (
             <span key={c} className="rounded-full border border-line px-2.5 py-1 text-[11.5px] text-ink-2">{c}</span>
           ))}
         </div>
         <div className="flex h-11 items-center gap-2 rounded-full border border-line-strong bg-bg pl-4 pr-1.5 text-[13px] text-ink-3">
-          <span className="flex-1 truncate">Chiedi qualcosa sul tuo giro…</span>
+          <span className="flex-1 truncate">Chiedi qualcosa sui tuoi clienti…</span>
           <span className="lp-typing flex gap-0.5" aria-hidden><span className="h-1 w-1 rounded-full bg-ink-3" /><span className="h-1 w-1 rounded-full bg-ink-3" /><span className="h-1 w-1 rounded-full bg-ink-3" /></span>
           <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-accent-ink"><ArrowUp className="h-4 w-4" aria-hidden /></span>
         </div>

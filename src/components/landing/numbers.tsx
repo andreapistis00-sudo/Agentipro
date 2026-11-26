@@ -2,9 +2,9 @@ import { Container, H2, Kicker } from "./shared";
 import { Reveal } from "./reveal";
 
 const NUMBERS = [
-  { v: "6", u: "ore", l: "a settimana recuperate tra ricerca, preparazione delle visite ed email." },
+  { v: "6", u: "ore", l: "a settimana recuperate tra ricerca di nomi, numeri e informazioni sui clienti." },
   { v: "10", u: "min", l: "per mappare una zona nuova, invece di un pomeriggio passato su Google." },
-  { v: "2×", u: "", l: "visite preparate sul serio, a parità di chilometri percorsi." },
+  { v: "1", u: "clic", l: "per avere sito, recensioni, persone e notizie di un'attività in una scheda, con le fonti." },
   { v: "0", u: "", l: "clienti persi tra post-it, rubrica del telefono e taccuino." },
 ];
 
@@ -36,7 +36,7 @@ export function Numbers() {
           <span className="font-display text-[120px] leading-[0.6] text-accent" aria-hidden>«</span>
           <figure>
             <blockquote className="font-display text-[clamp(1.9rem,3.6vw,3.2rem)] leading-[1.1] tracking-[-0.01em] text-balance">
-              Prima il lunedì lo passavo a cercare nomi e numeri. Adesso il lunedì <span className="italic text-accent">vendo</span>.
+              Prima il lunedì lo passavo a cercare nomi, numeri e recensioni. Adesso li trovo <span className="italic text-accent">già nella scheda</span>.
             </blockquote>
             <figcaption className="mt-6 font-mono text-[12px] text-bg/55">
               Marco, agente Horeca — scenario tipo, non una testimonianza reale

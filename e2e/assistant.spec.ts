@@ -6,7 +6,7 @@ test.describe("Assistente", () => {
     await page.goto("/app/assistant");
     await expect(page.getByText("Demo", { exact: true }).first()).toBeVisible();
     const input = page.getByLabel("Scrivi un messaggio");
-    await input.fill("Chi dovrei chiamare oggi?");
+    await input.fill("Confronta i miei clienti migliori");
     await page.getByRole("button", { name: "Invia" }).click();
 
     // la risposta arriva e contiene il cliente del CRM
@@ -18,13 +18,13 @@ test.describe("Assistente", () => {
     const vw = page.viewportSize()!.width;
     if (vw < 1024) await page.getByRole("button", { name: "Apri conversazioni" }).click();
     const nav = page.getByRole("navigation", { name: "Conversazioni" });
-    await expect(nav.getByText("Chi dovrei chiamare oggi")).toBeVisible();
+    await expect(nav.getByText("Confronta i miei clienti migliori")).toBeVisible();
 
     await page.reload();
     if (vw < 1024) await page.getByRole("button", { name: "Apri conversazioni" }).click();
-    await expect(page.getByRole("navigation", { name: "Conversazioni" }).getByText("Chi dovrei chiamare oggi")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Conversazioni" }).getByText("Confronta i miei clienti migliori")).toBeVisible();
     await expect(page.getByText("Bar Aurora").first()).toBeVisible();
-    await expect(page.getByText("Chi dovrei chiamare oggi?").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Chat" }).getByText("Confronta i miei clienti migliori").filter({ visible: true }).first()).toBeVisible();
   });
 
   test("si apre con ?leadId= e usa il cliente come contesto", async ({ page, api }) => {
@@ -32,7 +32,7 @@ test.describe("Assistente", () => {
     await page.goto(`/app/assistant?leadId=${lead.id}`);
     await expect(page.getByRole("heading", { name: /parliamo di Enoteca Verdi/ })).toBeVisible();
     await expect(page.getByPlaceholder("Chiedi qualcosa su Enoteca Verdi…")).toBeVisible();
-    await page.getByLabel("Scrivi un messaggio").fill("Come lo approccio?");
+    await page.getByLabel("Scrivi un messaggio").fill("Cosa sai di questo cliente?");
     await page.getByRole("button", { name: "Invia" }).click();
     await expect(page.getByRole("button", { name: "Invia" })).toBeVisible({ timeout: 30_000 }); // streaming concluso
     await expect(page.getByRole("region", { name: "Chat" }).getByText("Enoteca Verdi").filter({ visible: true }).first()).toBeVisible();

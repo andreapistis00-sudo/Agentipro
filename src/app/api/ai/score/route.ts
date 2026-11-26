@@ -12,7 +12,7 @@ export const maxDuration = 120;
 
 /**
  * POST /api/ai/score — body { leadIds: string[] } (max 50, solo lead dell'utente).
- * Risposta: { results: [{ leadId, score, summary }], errors?: [{ leadId, error }], demo }
+ * Risposta: { results: [{ leadId, score, summary, breakdown }], errors?: [{ leadId, error }], demo }
  * Con l'AI reale costa CREDIT_COST_SCORE crediti per lead (addebitati prima, rimborsati per i lead non valutati);
  * senza crediti sufficienti risponde 402.
  */

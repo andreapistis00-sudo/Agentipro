@@ -25,6 +25,7 @@ export type LeadDTO = {
   lostReason: string | null;
   score: number | null;
   scoreReason: string | null;
+  scoreBreakdown: string | null;
   scoredAt: string | null;
   briefing: string | null;
   briefingAt: string | null;

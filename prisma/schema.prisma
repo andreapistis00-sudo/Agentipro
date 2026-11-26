@@ -19,6 +19,8 @@ model User {
   idealCustomer String?  // cliente ideale
   territory     String?  // zona di lavoro (es. "Milano e provincia")
   tone          String?  // tono preferito dei messaggi
+  scoringCriteria String? // "Come valuti un cliente": criteri liberi per il punteggio AI
+  scoringWeights  String? // JSON {fit,size,reputation,presence,proximity,data} con pesi 0-5
   credits       Int      @default(50) // saldo crediti AI (50 in omaggio a ogni nuovo utente)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -64,8 +66,9 @@ model Lead {
   // AI
   score         Int?                         // 0-100
   scoreReason   String?                      // JSON {summary, factors[]}
+  scoreBreakdown String?                     // JSON {v, dimensions{fit,size,...}, confidence}: il totale è la media pesata
   scoredAt      DateTime?
-  briefing      String?                      // JSON del briefing pre-visita
+  briefing      String?                      // JSON della Scheda AI (ricerca sul cliente, v2; le versioni precedenti erano briefing pre-visita)
   briefingAt    DateTime?
 
   createdAt     DateTime  @default(now())

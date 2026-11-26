@@ -16,10 +16,10 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
         <div className="absolute inset-0 opacity-[0.18]" style={{ backgroundImage: "radial-gradient(var(--bg) 1px, transparent 1px)", backgroundSize: "22px 22px" }} />
         <div className="relative flex h-full flex-col justify-end p-14 text-bg">
           <p className="font-display text-[52px] leading-[1.02] tracking-tight">
-            Meno ore in macchina<br />a caso. <span className="italic text-accent">Più firme.</span>
+            Trova i clienti della tua zona. <span className="italic text-accent">Conoscili meglio.</span>
           </p>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-bg/70">
-            Agentipro trova le attività della tua zona, ti dice chi chiamare per primo e prepara ogni visita al posto tuo.
+            Agentipro trova le attività della tua zona, raccoglie dal web informazioni e recensioni su ognuna, le valuta secondo i tuoi criteri e le tiene in ordine nel CRM.
           </p>
         </div>
       </div>

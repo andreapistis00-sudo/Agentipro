@@ -1,8 +1,9 @@
-// Modalità dimostrativa (nessuna ANTHROPIC_API_KEY): risposte deterministiche, plausibili e
-// personalizzate con i dati reali del lead e del profilo. Funzioni pure, testabili.
+// Modalità dimostrativa (nessuna ANTHROPIC_API_KEY): risposte deterministiche e fattuali,
+// costruite solo con i dati reali del lead e del profilo (nessuna ricerca web). Funzioni pure, testabili.
 import { stageLabel } from "@/lib/utils";
 import { inTerritory, norm, type ActivityForAi, type LeadForAi, type SellerProfile } from "./lead-context";
-import type { Briefing, ScoreFactor, ScoreOutput, Source } from "./schemas";
+import { researchOf, type Research, type ScoreFactor, type ScoreOutput, type Source } from "./schemas";
+import { SCORE_DIMENSIONS, type Confidence, type DimensionId } from "./scoring";
 
 /* ------------------------------ Famiglie di attività ------------------------------ */
 
@@ -54,300 +55,244 @@ function directMention(lead: LeadForAi, u: SellerProfile) {
 
 /* ---------------------------------- Lead score ---------------------------------- */
 
-type WeightedFactor = ScoreFactor & { weight: number };
+
+/** Il profilo o i criteri dell'agente citano parole della categoria/nome del lead (es. "gelato" ↔ "gelateria"). */
+function criteriaHit(lead: LeadForAi, criteria: string | null | undefined): boolean {
+  const c = norm(criteria);
+  if (!c) return false;
+  const target = norm([lead.category, lead.name].filter(Boolean).join(" "));
+  return c.split(/[^a-z0-9]+/).filter((w) => w.length > 4).some((w) => target.includes(w.slice(0, 5)));
+}
+
+/* ---------------------------------- Lead score ---------------------------------- */
+
+type Dim = { score: number; reason: string; factor?: { label: string; detail: string } };
 
 /**
- * Euristica deterministica del punteggio (0-100) per la modalità demo.
- * Stessi criteri del prompt reale: fit col profilo, raggiungibilità, segnali di salute, territorio, fase, attività.
+ * Euristica deterministica dei sotto-punteggi (0-100) per la modalità demo, con gli stessi criteri del prompt reale.
+ * Il totale lo calcola il chiamante con i pesi dell'agente.
  */
-export function demoScore(lead: LeadForAi, seller: SellerProfile, activities: ActivityForAi[] = [], now = new Date()): ScoreOutput {
-  const factors: WeightedFactor[] = [];
-  const add = (weight: number, label: string, detail: string) =>
-    factors.push({ weight, label, detail, impact: weight >= 0 ? "+" : "-" });
-
-  let score = 42;
+export function demoScore(
+  lead: LeadForAi,
+  seller: SellerProfile & { scoringCriteria?: string | null },
+  activities: ActivityForAi[] = [],
+  now = new Date(),
+): ScoreOutput {
+  void activities; void now;
+  const research = researchOf(lead.briefing ?? null);
   const fam = familyOf(lead.category) ?? familyOf(lead.name);
   const sellerFams = sellerFamilies(seller);
   const hasProfile = Boolean(seller.sector || seller.products || seller.idealCustomer);
-  const catLabel = lead.category ?? "attività";
+  const catLabel = capitalize(lead.category ?? "Attività");
+  const rating = lead.rating ?? research?.online.googleRating ?? null;
+  const reviews = lead.reviewsCount ?? research?.online.reviewsCount ?? null;
+  const website = lead.website ?? research?.online.website ?? null;
+  const phone = lead.phone ?? research?.online.phone ?? null;
+  const email = lead.email ?? research?.online.email ?? null;
+  const contact = lead.contactName ?? research?.people[0]?.name ?? null;
 
-  // 1. Coerenza con il profilo
-  if (hasProfile && (directMention(lead, seller) || (fam && sellerFams.has(fam)))) {
-    const w = directMention(lead, seller) ? 26 : 22;
-    add(w, "In target", `${capitalize(catLabel)}: rientra nel tuo cliente ideale${seller.sector ? ` (${seller.sector})` : ""}.`);
-  } else if (hasProfile && fam && sellerFams.size > 0) {
-    add(-18, "Fuori target", `${capitalize(catLabel)} non è tra i segmenti che servi di solito (${[...sellerFams].map((f) => FAMILIES[f].label).slice(0, 2).join(", ")}).`);
-  } else if (!hasProfile) {
-    add(-2, "Profilo da completare", "Completa il profilo commerciale per valutare quanto il cliente è in target.");
-  } else {
-    add(4, "Target da verificare", `Categoria ${lead.category ? `«${lead.category}»` : "non indicata"}: verifica il bisogno durante il primo contatto.`);
+  // fit
+  let fit: Dim;
+  const direct = hasProfile && directMention(lead, seller);
+  if (!hasProfile) fit = { score: 50, reason: "Profilo commerciale incompleto: aderenza non valutabile.", factor: { label: "Profilo da completare", detail: "Senza cosa vendi e cliente ideale l'aderenza resta neutra." } };
+  else if (direct || (fam && sellerFams.has(fam))) fit = { score: direct ? 88 : 80, reason: `${catLabel} rientra nel cliente ideale indicato${seller.sector ? ` (${seller.sector})` : ""}.`, factor: { label: "In target", detail: `${catLabel}: corrisponde al tuo cliente ideale.` } };
+  else if (fam && sellerFams.size > 0) fit = { score: 22, reason: `${catLabel} non è tra i segmenti del profilo (${[...sellerFams].map((f) => FAMILIES[f].label).slice(0, 2).join(", ")}).`, factor: { label: "Fuori target", detail: `${catLabel} non rientra nei segmenti che servi.` } };
+  else fit = { score: 50, reason: `Categoria ${lead.category ? `«${lead.category}»` : "non indicata"}: aderenza non deducibile dai dati.` };
+  if (criteriaHit(lead, seller.scoringCriteria)) {
+    fit = { score: Math.min(100, fit.score + 8), reason: `${fit.reason} Corrisponde anche ai tuoi criteri di valutazione.`, factor: fit.factor ?? { label: "Nei tuoi criteri", detail: "Corrisponde ai criteri che hai indicato nel profilo." } };
   }
 
-  // 2. Raggiungibilità
-  const channels = [lead.phone && "telefono", lead.email && "email", lead.website && "sito"].filter(Boolean) as string[];
-  if (channels.length === 0) add(-12, "Nessun recapito", "Mancano telefono, email e sito: serve una visita a freddo.");
-  else if (channels.length >= 2) add(4 + channels.length * 2, "Facile da contattare", `Disponibili ${channels.join(", ")}.`);
-  else add(3, "Un solo recapito", `Hai solo ${channels[0]}: prova a raccogliere anche un'email.`);
-  if (lead.contactName) add(5, "Referente noto", `Conosci il referente: ${lead.contactName}${lead.contactRole ? `, ${lead.contactRole}` : ""}.`);
+  // size
+  const size: Dim =
+    reviews == null ? { score: 45, reason: "Nessun indicatore di volume disponibile (recensioni, sedi, coperti)." }
+    : reviews >= 500 ? { score: 88, reason: `${reviews} recensioni: volume di clientela molto alto.`, factor: { label: "Alto volume", detail: `${reviews} recensioni indicano un flusso di clienti elevato.` } }
+    : reviews >= 200 ? { score: 75, reason: `${reviews} recensioni: volume di clientela alto.`, factor: { label: "Alto volume", detail: `${reviews} recensioni indicano molto passaggio.` } }
+    : reviews >= 80 ? { score: 62, reason: `${reviews} recensioni: volume medio.` }
+    : reviews >= 20 ? { score: 50, reason: `${reviews} recensioni: volume contenuto.` }
+    : { score: 38, reason: `Solo ${reviews} recensioni: attività piccola o poco recensita.` };
 
-  // 3. Segnali di salute
-  if (lead.rating != null) {
-    const n = lead.reviewsCount ?? 0;
-    if (lead.rating >= 4.5 && n >= 50) add(12, "Recensioni ottime", `${fmtRating(lead.rating)}/5 su ${n} recensioni: attività solida e con passaggio.`);
-    else if (lead.rating >= 4.0) add(n >= 100 ? 9 : 6, "Buona reputazione", `${fmtRating(lead.rating)}/5${n ? ` su ${n} recensioni` : ""}.`);
-    else if (lead.rating < 3.5) add(-7, "Reputazione debole", `${fmtRating(lead.rating)}/5: possibile attività in difficoltà, valuta la solvibilità.`);
-    else add(1, "Reputazione nella media", `${fmtRating(lead.rating)}/5${n ? ` su ${n} recensioni` : ""}.`);
-    if (n >= 300) add(4, "Alto volume", `${n} recensioni indicano un flusso di clienti elevato.`);
+  // reputation
+  let reputation: Dim;
+  if (rating == null) reputation = { score: 45, reason: "Nessuna valutazione pubblica disponibile.", factor: { label: "Nessuna recensione", detail: "Non ci sono valutazioni pubbliche nei dati." } };
+  else {
+    const r = fmtRating(rating);
+    const base = rating >= 4.6 ? 90 : rating >= 4.3 ? 80 : rating >= 4.0 ? 68 : rating >= 3.5 ? 52 : 30;
+    const few = (reviews ?? 0) < 15;
+    const score = few ? Math.round((base + 60) / 2) : base;
+    reputation = {
+      score,
+      reason: `${r}/5${reviews ? ` su ${reviews} recensioni` : ""}${few ? ", su un numero ridotto di recensioni" : ""}.`,
+      factor: base >= 80 ? { label: "Recensioni ottime", detail: `${r}/5${reviews ? ` su ${reviews} recensioni` : ""}.` }
+        : base < 52 ? { label: "Reputazione debole", detail: `${r}/5: valutazione sotto la media.` } : undefined,
+    };
   }
 
-  // 4. Territorio
-  const terr = inTerritory(lead, seller.territory);
-  if (terr === true) add(6, "Nel tuo territorio", `${lead.city ?? "La sede"} è nella tua zona (${seller.territory}).`);
-  else if (terr === false) add(-12, "Fuori zona", `${lead.city ?? "La sede"} è fuori dal territorio dichiarato (${seller.territory}).`);
-
-  // 5. Fase CRM
-  const stageW: Record<string, [number, string, string] | undefined> = {
-    contacted: [5, "Già contattato", "C'è già stato un primo contatto: il ghiaccio è rotto."],
-    qualified: [12, "Qualificato", "Interesse confermato: è il momento di proporre un'offerta."],
-    negotiation: [17, "In trattativa", "Trattativa aperta: priorità alta per chiudere."],
-    won: [-12, "Già cliente", "È già tuo cliente: valuta solo upsell o riordino."],
-    lost: [-22, "Perso", `Trattativa persa${lead.lostReason ? ` (${lead.lostReason})` : ""}: ricontatta solo se il motivo è superabile.`],
+  // presence
+  const pres = (phone ? 25 : 0) + (email ? 20 : 0) + (website ? 30 : 0) + (contact ? 15 : 0) + (lead.openingHours || research?.business.openingHours ? 10 : 0)
+    + Math.min(10, (research?.online.socials.length ?? 0) * 5);
+  const channels = [phone && "telefono", email && "email", website && "sito"].filter(Boolean) as string[];
+  const presence: Dim = {
+    score: Math.max(5, Math.min(100, pres)),
+    reason: channels.length ? `Disponibili ${channels.join(", ")}${contact ? `, referente ${contact}` : ""}.` : "Nessun recapito né sito disponibili.",
+    factor: channels.length === 0 ? { label: "Nessun recapito", detail: "Mancano telefono, email e sito." }
+      : channels.length >= 2 ? { label: "Facile da raggiungere", detail: `Disponibili ${channels.join(", ")}.` } : undefined,
   };
-  const st = stageW[lead.stage];
-  if (st) add(st[0], st[1], st[2]);
-  if (lead.value != null && lead.value >= 3000) add(5, "Valore interessante", `Potenziale stimato di ${Math.round(lead.value).toLocaleString("it-IT")} €.`);
 
-  // 6. Attività recenti / follow-up
-  const recent = activities.find((a) => now.getTime() - new Date(a.createdAt).getTime() < 14 * 86400000);
-  if (recent) add(5, "Contatto recente", "Ci sono attività nelle ultime due settimane: la relazione è calda.");
-  const overdue = lead.nextFollowUp && new Date(lead.nextFollowUp).getTime() < now.getTime();
-  if (overdue && lead.stage !== "won" && lead.stage !== "lost") add(6, "Follow-up scaduto", "Il follow-up previsto è già passato: richiamalo al più presto.");
+  // proximity
+  const terr = inTerritory(lead, seller.territory);
+  const proximity: Dim =
+    terr === true ? { score: 90, reason: `${lead.city ?? "La sede"} è nel tuo territorio (${seller.territory}).`, factor: { label: "Nel tuo territorio", detail: `${lead.city ?? "La sede"} è nella tua zona.` } }
+    : terr === false ? { score: 20, reason: `${lead.city ?? "La sede"} è fuori dal territorio dichiarato (${seller.territory}).`, factor: { label: "Fuori zona", detail: `${lead.city ?? "La sede"} è fuori dal territorio dichiarato.` } }
+    : seller.territory ? { score: 60, reason: `Non è possibile stabilire se ${lead.city ?? "la sede"} rientra in «${seller.territory}».` }
+    : { score: 55, reason: "Territorio non indicato nel profilo." };
 
-  for (const f of factors) score += f.weight;
-  score = Math.max(3, Math.min(97, Math.round(score)));
+  // data
+  const filled = [lead.category, lead.address || lead.city, phone, email, website, lead.openingHours, rating, contact, lead.notes].filter((x) => x != null && x !== "").length;
+  const dataScore = Math.min(100, Math.round((filled / 9) * 80) + (research ? 20 : 0));
+  const data: Dim = {
+    score: dataScore,
+    reason: `${filled} dati su 9 presenti nella scheda${research ? ", più la Scheda AI" : ""}.`,
+    factor: dataScore < 35 ? { label: "Dati scarsi", detail: "La scheda ha poche informazioni sul cliente." } : undefined,
+  };
 
-  const sorted = [...factors].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight)).slice(0, 5);
-  while (sorted.length < 3) {
-    sorted.push(
-      lead.rating == null
-        ? { weight: 0, label: "Nessuna recensione", detail: "Non ci sono valutazioni pubbliche: verifica la reputazione di persona.", impact: "-" }
-        : { weight: 0, label: "Dati essenziali", detail: "Scheda con poche informazioni: arricchiscila dopo il primo contatto.", impact: "-" },
-    );
+  const dims: Record<DimensionId, Dim> = { fit, size, reputation, presence, proximity, data };
+  const confidence: Confidence = dataScore >= 70 ? "alta" : dataScore >= 40 ? "media" : "bassa";
+
+  const factors: (ScoreFactor & { w: number })[] = SCORE_DIMENSIONS.flatMap((d) => {
+    const x = dims[d.id];
+    return x.factor ? [{ ...x.factor, impact: x.score >= 55 ? "+" as const : "-" as const, w: Math.abs(x.score - 50) }] : [];
+  }).sort((a, b) => b.w - a.w).slice(0, 5);
+  for (const d of SCORE_DIMENSIONS) {
+    if (factors.length >= 3) break;
+    if (factors.some((f) => f.detail === dims[d.id].reason)) continue;
+    factors.push({ label: d.label, detail: dims[d.id].reason, impact: dims[d.id].score >= 55 ? "+" : "-", w: 0 });
   }
 
-  const pos = sorted.filter((f) => f.impact === "+").map((f) => f.label.toLowerCase());
-  const neg = sorted.filter((f) => f.impact === "-").map((f) => f.label.toLowerCase());
+  const pos = factors.filter((f) => f.impact === "+").map((f) => f.label.toLowerCase());
+  const neg = factors.filter((f) => f.impact === "-").map((f) => f.label.toLowerCase());
   const summary = pos.length
-    ? `${capitalize(pos.slice(0, 2).join(" e "))}${neg.length ? `, ma ${neg[0]}` : ""}.`
-    : `Pochi segnali positivi${neg.length ? `: ${neg.slice(0, 2).join(" e ")}` : ""}.`;
+    ? `${capitalize(pos.slice(0, 2).join(" e "))}${neg.length ? `; ${neg[0]}` : ""}.`
+    : `Pochi elementi a favore${neg.length ? `: ${neg.slice(0, 2).join(" e ")}` : ""}.`;
 
-  return { score, summary, factors: sorted.map(({ label, impact, detail }) => ({ label, impact, detail })) };
+  return {
+    dimensions: Object.fromEntries(SCORE_DIMENSIONS.map((d) => [d.id, { score: dims[d.id].score, reason: dims[d.id].reason }])) as ScoreOutput["dimensions"],
+    confidence,
+    summary,
+    factors: factors.map(({ label, impact, detail }) => ({ label, impact, detail })),
+  };
 }
 
-/* ---------------------------------- Briefing ---------------------------------- */
+/* ---------------------------------- Scheda AI ---------------------------------- */
 
-const FAMILY_PLAYBOOK: Record<Family | "generic", { moment: string; pains: string[]; objections: { objection: string; response: string }[]; questions: string[] }> = {
-  horeca: {
-    moment: "Evita l'ora di punta: meglio a metà mattina (10-11:30) o primo pomeriggio, quando il banco è tranquillo.",
-    pains: ["continuità del servizio nei momenti di punta", "margini schiacciati dai rincari delle materie prime", "personale da formare in fretta"],
-    objections: [
-      { objection: "Ho già un fornitore e mi trovo bene.", response: "Ci mancherebbe, non le chiedo di cambiare domani. Le propongo di provarci in parallelo per due settimane su un solo prodotto: se non nota la differenza, nessun impegno." },
-      { objection: "Adesso non ho tempo, siamo pieni.", response: "La capisco, lavoro con tanti locali e so cos'è il banco a quest'ora. Mi dice lei quando passo? Bastano dieci minuti, porto un campione da assaggiare." },
-    ],
-    questions: ["Quali sono i prodotti che vi danno più margine oggi?", "Cosa succede quando un fornitore vi lascia senza merce nel weekend?", "Chi decide gli acquisti, lei o il titolare?"],
-  },
-  hotel: {
-    moment: "Chiedi della direzione o del responsabile acquisti; evita l'orario di check-out (10-12).",
-    pains: ["qualità percepita della colazione nelle recensioni", "gestione dei picchi stagionali", "costi per camera occupata"],
-    objections: [
-      { objection: "Gli acquisti li decide la proprietà/il gruppo.", response: "Perfetto, allora le preparo una proposta scritta da girare alla proprietà con i numeri per camera: così ha già tutto in mano." },
-      { objection: "Siamo a fine stagione, ne riparliamo.", response: "È proprio il momento giusto per organizzarsi: decidiamo ora con calma e partite già pronti alla prossima stagione, senza corse." },
-    ],
-    questions: ["Cosa scrivono gli ospiti della colazione nelle recensioni?", "Quanto cambia l'occupazione tra alta e bassa stagione?", "Con quanti fornitori lavorate oggi?"],
-  },
-  beauty: {
-    moment: "I saloni sono più liberi a inizio settimana (lunedì è spesso chiuso: martedì mattina è ideale).",
-    pains: ["fidelizzazione delle clienti", "rivendita di prodotti in negozio", "gestione degli appuntamenti"],
-    objections: [
-      { objection: "Uso già un marchio che le clienti conoscono.", response: "Infatti non le propongo di sostituirlo: le lascio una linea da affiancare, con materiale per la rivendita, e vediamo cosa chiedono le clienti." },
-      { objection: "Il magazzino è già pieno.", response: "Per questo partiamo con un kit minimo e riassortimento rapido: niente scorte, ordina solo quello che vende." },
-    ],
-    questions: ["Quanto incide oggi la rivendita sul fatturato?", "Quali servizi vi chiedono di più le clienti?", "Come le richiamate per il prossimo appuntamento?"],
-  },
-  food: {
-    moment: "Passa a metà mattina, dopo l'apertura e prima della ressa di mezzogiorno.",
-    pains: ["concorrenza della grande distribuzione", "rotazione e scarti dei freschi", "distinguersi con prodotti locali"],
-    objections: [
-      { objection: "Al supermercato costa meno.", response: "Sul prezzo a scaffale sì, ma i suoi clienti vengono qui per la qualità e il servizio: le propongo prodotti che il supermercato non ha e che si vendono con margine." },
-      { objection: "Non ho spazio a scaffale.", response: "Partiamo da un solo espositore vicino alla cassa: se non ruota in tre settimane lo ritiro io." },
-    ],
-    questions: ["Quali prodotti le chiedono e non trova?", "Quanto scarto ha a settimana sui freschi?", "Ogni quanto riordina?"],
-  },
-  retail: {
-    moment: "Evita il sabato e l'apertura del lunedì: meglio martedì-giovedì a metà mattina.",
-    pains: ["ingressi in calo e concorrenza online", "capitale bloccato in magazzino", "rinnovare l'offerta senza rischi"],
-    objections: [
-      { objection: "Con l'online è dura, non investo.", response: "Proprio per questo le propongo articoli che online non si comprano d'impulso e condizioni con reso dell'invenduto: il rischio lo condividiamo." },
-      { objection: "Mi mandi un catalogo via email.", response: "Glielo mando volentieri, ma le porto anche due campioni: toccare il prodotto è un'altra cosa. Le va bene giovedì?" },
-    ],
-    questions: ["Quali categorie vi danno più soddisfazione quest'anno?", "Chi sono i vostri clienti più fedeli?", "Come decidete cosa riordinare?"],
-  },
-  health: {
-    moment: "Chiedi un appuntamento: i professionisti sanitari raramente ricevono senza preavviso.",
-    pains: ["tempo sottratto ai pazienti", "conformità e normative", "affidabilità delle forniture"],
-    objections: [
-      { objection: "Abbiamo contratti già in essere.", response: "Capisco. Mi dice quando scadono? Le preparo un confronto puntuale da valutare con calma prima del rinnovo." },
-      { objection: "Non ho tempo per i rappresentanti.", response: "Le chiedo solo cinque minuti a fine giornata, oppure le lascio una scheda di una pagina con i numeri: decide lei." },
-    ],
-    questions: ["Cosa vi fa perdere più tempo nella gestione quotidiana?", "Chi si occupa degli ordini?", "Quando scadono i contratti attuali?"],
-  },
-  auto: {
-    moment: "Le officine sono più libere a fine mattinata o dopo le 17; evita il lunedì mattina.",
-    pains: ["tempi di consegna dei ricambi", "margini sulla manodopera", "clienti che chiedono preventivi veloci"],
-    objections: [
-      { objection: "Prendo tutto dal solito ricambista.", response: "Normale. Mi metta alla prova su un solo codice urgente: se arrivo prima e al prezzo giusto, ne riparliamo." },
-      { objection: "Il prezzo è più alto.", response: "Guardiamo il costo totale: tempi di fermo auto e resi pesano più di qualche euro di listino. Facciamo due conti insieme?" },
-    ],
-    questions: ["Quante auto vi restano ferme in attesa di pezzi?", "Che cosa vi chiedono di più i clienti?", "Come gestite i preventivi?"],
-  },
-  office: {
-    moment: "Chiama prima per fissare un appuntamento; il venerdì pomeriggio è da evitare.",
-    pains: ["tempo dei professionisti", "costi fissi dell'ufficio", "affidabilità e assistenza"],
-    objections: [
-      { objection: "Ci pensiamo e le faremo sapere.", response: "Certo. Per aiutarla a decidere, cosa le servirebbe vedere? Fissiamo già una breve chiamata martedì per eventuali dubbi." },
-      { objection: "Non è una priorità adesso.", response: "Capisco. Le lascio un confronto dei costi annui: se il risparmio è quello che stimo, diventa una priorità da solo." },
-    ],
-    questions: ["Chi prende le decisioni su questi acquisti?", "Cosa vi ha fatto cambiare fornitore in passato?", "Che budget avete previsto per quest'anno?"],
-  },
-  fitness: {
-    moment: "Meglio a metà mattina o primo pomeriggio, fuori dalle fasce piene (7-9 e 18-21).",
-    pains: ["fidelizzazione degli iscritti", "ricavi extra oltre l'abbonamento", "picchi di settembre e gennaio"],
-    objections: [
-      { objection: "Gli iscritti non comprano extra.", response: "Dipende da come viene proposto: con il nostro espositore e una promo d'ingresso i centri simili vendono già dalla prima settimana. Proviamo un mese?" },
-      { objection: "Non ho personale per gestirlo.", response: "È pensato per gestirsi da solo: riassortimento e materiali li curo io." },
-    ],
-    questions: ["Quanti iscritti attivi avete?", "Quali servizi extra funzionano meglio?", "Quando avete il picco di nuove iscrizioni?"],
-  },
-  build: {
-    moment: "Telefona prima: titolari e capicantiere sono spesso fuori. Primo mattino o fine giornata.",
-    pains: ["consegne puntuali in cantiere", "liquidità e tempi di pagamento", "materiali certificati"],
-    objections: [
-      { objection: "Il magazzino edile sotto casa mi serve in giornata.", response: "Ha ragione, la velocità conta. Le propongo consegna programmata in cantiere sui materiali ricorrenti: meno viaggi e prezzi bloccati." },
-      { objection: "Pago a 90 giorni con il fornitore attuale.", response: "Parliamone: posso proporle condizioni di pagamento in linea, se partiamo con un volume minimo concordato." },
-    ],
-    questions: ["Quanti cantieri avete aperti in questo periodo?", "Cosa vi manca più spesso in cantiere?", "Chi segue gli acquisti?"],
-  },
-  generic: {
-    moment: "Scegli un orario tranquillo a metà mattina e presentati con un motivo concreto per passare.",
-    pains: ["tempo del titolare", "costi e margini", "affidabilità dei fornitori"],
-    objections: [
-      { objection: "Non mi serve niente, grazie.", response: "Ci sta, non sono qui per vendere oggi. Mi bastano due domande per capire se ha senso rivederci: le va?" },
-      { objection: "Costa troppo.", response: "Rispetto a cosa? Se mi dice quanto spende oggi, le faccio vedere nel concreto dove si recupera la differenza." },
-    ],
-    questions: ["Qual è oggi la sua priorità per l'attività?", "Cosa la convincerebbe a provare un nuovo fornitore?", "Chi altro partecipa alla decisione?"],
-  },
-};
+const ALL_WEEK = /(mo-su|lun-dom|lunedi-domenica|24\/7|tutti i giorni|7 giorni su 7)/;
 
-function firstSentence(s: string | null | undefined, max = 140) {
-  if (!s) return "";
-  const t = s.replace(/\s+/g, " ").trim();
-  const cut = t.split(/(?<=[.!?;])\s/)[0] ?? t;
-  return cut.length > max ? `${cut.slice(0, max - 1).trimEnd()}…` : cut.replace(/[.;]$/, "");
-}
-
-function productItems(products: string | null | undefined) {
-  if (!products) return [];
-  return products.split(/[,;.\n]| e /).map((p) => p.trim()).filter((p) => p.length > 3).slice(0, 4);
-}
-
-export function demoBriefing(lead: LeadForAi, activities: ActivityForAi[], seller: SellerProfile, now = new Date()): Briefing {
+/**
+ * Scheda AI dimostrativa: in demo non si fa ricerca web, quindi la scheda riordina solo i dati già presenti
+ * nel CRM e dichiara in "unknowns" cosa resta da verificare. Nessun fatto inventato.
+ */
+export function demoResearch(lead: LeadForAi, activities: ActivityForAi[] = [], now = new Date()): Research {
+  void now;
   const fam = familyOf(lead.category) ?? familyOf(lead.name);
-  const pb = FAMILY_PLAYBOOK[fam ?? "generic"];
-  const cat = lead.category ? lead.category.toLowerCase() : "attività";
   const where = lead.city ? ` a ${lead.city}` : "";
-  const items = productItems(seller.products);
-  const offerCore = items[0] ?? (seller.sector ? `la linea ${seller.sector.toLowerCase()}` : "la tua offerta");
-  const lastContact = activities.find((a) => a.type !== "stage");
-  const openTask = activities.find((a) => a.type === "task" && !a.done);
-  const first = seller.name.split(" ")[0];
   const reviews = lead.rating != null ? `${fmtRating(lead.rating)}/5${lead.reviewsCount ? ` su ${lead.reviewsCount} recensioni` : ""}` : null;
-  const channels = [lead.phone && "telefono", lead.email && "email", lead.website && "sito web"].filter(Boolean);
+  const website = lead.website ? (/^https?:\/\//i.test(lead.website) ? lead.website : `https://${lead.website}`) : null;
+  const hours = norm(lead.openingHours);
 
-  const snapshot = [
-    `${lead.name} è ${fam ? `un'attività del settore ${FAMILIES[fam].label}` : `un'attività`}${where}${lead.category ? ` (${lead.category})` : ""}.`,
-    reviews ? `Reputazione online: ${reviews}${lead.rating != null && lead.rating >= 4.4 ? ", sopra la media della zona" : ""}.` : "Non ci sono recensioni pubbliche: la reputazione va verificata di persona.",
-    `Nel CRM è in fase «${stageLabel(lead.stage)}»${lead.contactName ? `, referente ${lead.contactName}${lead.contactRole ? ` (${lead.contactRole})` : ""}` : ""}${channels.length ? `; recapiti: ${channels.join(", ")}` : "; nessun recapito salvato"}.`,
+  const summary = [
+    `${lead.name} è ${lead.category ? `un'attività della categoria «${lead.category}»` : "un'attività"}${where}${fam ? ` (settore ${FAMILIES[fam].label})` : ""}.`,
+    reviews ? `Su Google ha una valutazione di ${reviews}.` : "Non risultano valutazioni pubbliche nei dati disponibili.",
+    "Scheda dimostrativa: riassume i dati già presenti nel CRM, senza ricerca web.",
   ].join(" ");
 
-  const overdueFollowUp = lead.nextFollowUp && new Date(lead.nextFollowUp).getTime() < now.getTime() && lead.stage !== "won" && lead.stage !== "lost";
-  const whyNowBase =
-    lead.stage === "negotiation" ? "C'è una trattativa aperta: ogni giorno senza risposta raffredda il cliente, questa visita serve a chiudere."
-    : lead.stage === "qualified" ? "Ha già mostrato interesse: è il momento di passare dalla conversazione a una proposta concreta."
-    : lastContact ? `L'ultimo contatto risale al ${fmtDay(lastContact.createdAt)}: riprendere il filo adesso mantiene viva la relazione.`
-    : lead.rating != null && (lead.reviewsCount ?? 0) >= 100 ? `Con ${lead.reviewsCount} recensioni ha un passaggio importante: un fornitore affidabile per lui vale molto, e la concorrenza lo sa.`
-    : `È un cliente in target ancora mai contattato: arrivare prima dei concorrenti${seller.territory ? ` in ${seller.territory}` : ""} è un vantaggio.`;
-  const whyNow = overdueFollowUp ? `Il follow-up previsto per ${fmtDay(lead.nextFollowUp!)} è già passato. ${whyNowBase}` : whyNowBase;
+  const signals: Research["signals"] = [];
+  if (lead.rating != null && lead.rating >= 4.5 && (lead.reviewsCount ?? 0) >= 50) signals.push({ label: "Valutazione molto alta", detail: `${reviews}, sopra 4,5 con un numero significativo di recensioni.` });
+  else if (lead.rating != null && lead.rating < 3.5) signals.push({ label: "Valutazione bassa", detail: `${reviews}.` });
+  if ((lead.reviewsCount ?? 0) >= 300) signals.push({ label: "Molte recensioni", detail: `${lead.reviewsCount} recensioni: indicano un flusso di clienti elevato.` });
+  if (hours && ALL_WEEK.test(hours)) signals.push({ label: "Aperto 7 giorni su 7", detail: `Orari: ${lead.openingHours}.` });
+  if (!lead.website) signals.push({ label: "Nessun sito nei dati", detail: "Nella scheda non risulta un sito web." });
+  if (lead.contactName) signals.push({ label: "Referente noto", detail: `${lead.contactName}${lead.contactRole ? `, ${lead.contactRole}` : ""} (dal CRM).` });
+  const lastContact = activities.find((a) => a.type === "call" || a.type === "email" || a.type === "meeting");
+  if (lastContact) signals.push({ label: "Ultimo contatto registrato", detail: `${fmtDay(lastContact.createdAt)}: ${firstSentence(lastContact.content, 100)}.` });
 
-  const talkingPoints = [
-    `Parti da ciò che conta per una ${cat}: ${pb.pains[0]}.`,
-    items.length ? `Presenta ${items.slice(0, 2).map((x, i) => (i ? lower(x) : x)).join(" e ")}${seller.company ? ` di ${seller.company}` : ""}, collegandoli a ${pb.pains[1]}.` : `Collega la tua offerta a ${pb.pains[1]}.`,
-    reviews ? `Usa le recensioni (${reviews}) come apertura: complimentati per un punto di forza concreto prima di proporre.` : `Chiedi come si fanno conoscere: senza recensioni online il passaparola è tutto, e tu puoi aiutarli.`,
-    lastContact ? `Riprendi l'ultimo contatto: «${firstSentence(lastContact.content, 110)}».` : `Racconta in 30 secondi un caso di un cliente simile${seller.territory ? ` nella tua zona` : ""} con un risultato misurabile.`,
-    pb.moment,
+  const unknowns = [
+    "Titolari e referenti citati pubblicamente",
+    "Contenuto delle recensioni (aspetti apprezzati e critiche)",
+    "Notizie recenti, aperture o cambi di gestione",
+    ...(lead.openingHours ? [] : ["Orari di apertura"]),
+    ...(lead.phone ? [] : ["Telefono"]),
+    ...(lead.email ? [] : ["Email"]),
   ];
 
-  const offerToPropose = items.length
-    ? `Proponi una prova senza impegno di ${lower(offerCore)}${items[1] ? ` (eventualmente con ${lower(items[1])})` : ""}: rischio basso per il cliente, e ti permette di dimostrare il valore sul campo prima di parlare di listino.`
-    : `Proponi un ordine di prova limitato o una dimostrazione gratuita: abbassa la barriera d'ingresso e ti dà un motivo per tornare.`;
-
-  const openingLine = lastContact
-    ? `Buongiorno${lead.contactName ? ` ${lead.contactName.split(" ")[0]}` : ""}, sono ${first}: ero passato a sentire com'è andata dopo la nostra ultima chiacchierata, ha due minuti?`
-    : lead.rating != null && lead.rating >= 4.3
-      ? `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}. Ho letto ottime recensioni su di voi e lavoro con altre attività simili della zona: posso rubarle due minuti?`
-      : `Buongiorno, sono ${first}${seller.company ? ` di ${seller.company}` : ""}: lavoro con altre attività come la vostra${where} e ho un'idea che potrebbe interessarvi. È lei il titolare?`;
-
-  const isOwner = /titolar|proprietar|socio/.test(norm(lead.contactRole));
-  const questionsToAsk = [
-    ...pb.questions.filter((q) => !(isOwner && /chi decide|chi prende|chi segue|chi si occupa/i.test(q))),
-    items.length ? `Oggi come gestite ${lower(offerCore)}, e cosa cambiereste?` : "Cosa cambiereste del vostro fornitore attuale?",
-  ].slice(0, 4);
-
-  const likelyObjections = [...pb.objections, FAMILY_PLAYBOOK.generic.objections[1]].slice(0, 3);
-
-  const nextStep = openTask
-    ? `Chiudi il promemoria aperto («${firstSentence(openTask.content, 80)}») e fissa una data precisa per la prova o il preventivo.`
-    : lead.stage === "negotiation"
-      ? "Ottieni il sì sull'ordine di prova, oppure un appuntamento entro 7 giorni con chi firma."
-      : "Esci con un appuntamento fissato entro 10 giorni per consegnare la prova o un preventivo scritto, e registralo subito nel CRM.";
+  const facts: Research["facts"] = [];
+  if (lead.source === "osm") facts.push({ text: "Attività censita su OpenStreetMap.", sourceUrl: null });
+  if (lead.source === "google") facts.push({ text: "Attività presente su Google Maps.", sourceUrl: null });
 
   const sources: Source[] = [];
-  if (lead.website) sources.push({ title: `Sito ufficiale di ${lead.name}`, url: /^https?:\/\//i.test(lead.website) ? lead.website : `https://${lead.website}` });
+  if (website) sources.push({ title: `Sito ufficiale di ${lead.name}`, url: website });
   const q = encodeURIComponent([lead.name, lead.address, lead.city].filter(Boolean).join(", "));
   sources.push({ title: `${lead.name} su Google Maps`, url: `https://www.google.com/maps/search/?api=1&query=${q}` });
 
-  return { snapshot, whyNow, talkingPoints, likelyObjections, offerToPropose, openingLine, questionsToAsk, nextStep, sources, demo: true };
+  return {
+    v: 2,
+    summary,
+    business: {
+      type: lead.category, offering: null, openingHours: lead.openingHours, priceLevel: null, foundedOrSince: null, size: null,
+      locations: [[lead.address, lead.city].filter(Boolean).join(", ")].filter(Boolean),
+    },
+    people: lead.contactName ? [{ name: lead.contactName, role: lead.contactRole, source: "Dati inseriti nel CRM" }] : [],
+    online: {
+      website, phone: lead.phone, email: lead.email, socials: [],
+      googleRating: lead.rating, reviewsCount: lead.reviewsCount, otherListings: [],
+    },
+    reputation: {
+      overall: reviews ? `Valutazione media ${reviews}. In modalità dimostrativa il testo delle recensioni non viene letto.` : null,
+      positives: [], negatives: [],
+    },
+    facts,
+    signals: signals.slice(0, 6),
+    unknowns,
+    confidence: lead.rating != null && (lead.phone || lead.website) ? "media" : "bassa",
+    sources,
+    demo: true,
+  };
 }
 
 /* ---------------------------------- Chat ---------------------------------- */
 
 export type DemoIntent =
-  | { kind: "prioritize" }
   | { kind: "followups" }
+  | { kind: "stale"; days: number; stage: string | null }
+  | { kind: "compare" }
+  | { kind: "lead_info"; target: string | null }
+  | { kind: "web"; target: string | null }
+  | { kind: "summary" }
   | { kind: "email"; target: string | null }
-  | { kind: "objection"; objection: string }
-  | { kind: "plan" }
   | { kind: "note"; content: string; due: string | null }
   | { kind: "stage"; stage: string }
-  | { kind: "lead_advice" }
   | { kind: "generic" };
 
 const STAGE_WORDS: [RegExp, string][] = [
-  [/\b(ha firmato|vinto|chiuso il contratto|acquisito)\b/, "won"],
-  [/\b(perso|non (è|e) interessat|rifiutato)\b/, "lost"],
-  [/\b(trattativa|negoziazione)\b/, "negotiation"],
+  [/\b(ha firmato|vint|chiuso il contratto|acquisit)/, "won"],
+  [/\b(pers[oi]|non (è|e) interessat|rifiutato)\b/, "lost"],
+  [/\b(trattativa|trattative|negoziazione)\b/, "negotiation"],
   [/\b(qualificat)/, "qualified"],
   [/\b(contattat)/, "contacted"],
+  [/\b(nuov[oi])\b/, "new"],
 ];
+
+const NUM_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, due: 2, tre: 3, quattro: 4, cinque: 5, sei: 6 };
+
+function staleDays(m: string): number {
+  const x = m.match(/\bda\s+(\d+|un|una|uno|due|tre|quattro|cinque|sei)\s+(giorn|settiman|mes)/);
+  if (!x) return 14;
+  const n = Number(x[1]) || NUM_WORDS[x[1]] || 1;
+  return x[2] === "giorn" ? n : x[2] === "settiman" ? n * 7 : n * 30;
+}
+
+function targetName(message: string): string | null {
+  const t = message.match(/\b(?:sai di|su|di|per)\s+(?:il |la |lo |l'|i |le )?([A-ZÀ-Ý0-9«"][^?!.\n]{2,60})/)?.[1]?.trim();
+  return t ? t.replace(/[«»"]/g, "").trim() : null;
+}
 
 /** Riconosce l'intento del messaggio (modalità demo). */
 export function detectIntent(message: string, hasLead: boolean, now = new Date()): DemoIntent {
@@ -358,18 +303,19 @@ export function detectIntent(message: string, hasLead: boolean, now = new Date()
   if (hasLead && /\b(sposta|metti|passa|aggiorna)\b.*\b(fase|in |a )/.test(m)) {
     for (const [re, stage] of STAGE_WORDS) if (re.test(m)) return { kind: "stage", stage };
   }
-  if (/costa troppo|troppo car|prezzo|obiezion|ci penso|ho gia un fornitore|non mi interessa|non ho tempo/.test(m)) {
-    const quoted = message.match(/[«"“']([^«»"“”']{3,80})[»"”']/)?.[1];
-    return { kind: "objection", objection: quoted ?? (/costa troppo|car|prezzo/.test(m) ? "Costa troppo" : message.trim()) };
+  if (/\b(scrivi|scrivimi|bozza|prepara(mi)?|redigi)\b.*\b(email|e-mail|mail|messaggio|whatsapp)\b/.test(m)) {
+    return { kind: "email", target: message.match(/\bper\s+(?:il|la|lo|l'|i|le)?\s*([^,.?!\n]{3,60})/i)?.[1]?.trim() ?? null };
   }
-  if (/\b(email|e-mail|mail|messaggio|whatsapp|scrivimi|scrivi)\b/.test(m)) {
-    const target = message.match(/\bper\s+(?:il|la|lo|l'|i|le)?\s*([^,.?!\n]{3,60})/i)?.[1]?.trim() ?? null;
-    return { kind: "email", target };
+  if (/non (li |la |lo |le )?(sento|sentiamo|sentito|contatto|contattato|chiamo|chiamato|vedo)|da (\d+|un|una|due|tre|quattro|cinque|sei) (giorni|settiman|mes)|da tempo/.test(m)) {
+    const st = m.match(/\b(?:in|fase)\s+(trattativ|qualificat|contattat|nuov|vint|pers)/)?.[1];
+    const stage = st ? ({ trattativ: "negotiation", qualificat: "qualified", contattat: "contacted", nuov: "new", vint: "won", pers: "lost" } as Record<string, string>)[st] : null;
+    return { kind: "stale", days: staleDays(m), stage };
   }
-  if (/piano|giro visite|settimana|organizza|pianifica/.test(m)) return { kind: "plan" };
-  if (/richiamar|follow.?up|scadenz|cosa ho oggi|promemoria/.test(m)) return { kind: "followups" };
-  if (/chi (dovrei|devo|posso)|chiamare oggi|priorit|migliori clienti|piu caldi|chi contatto/.test(m)) return { kind: "prioritize" };
-  if (hasLead) return { kind: "lead_advice" };
+  if (/richiamar|follow.?up|scadenz|cosa ho oggi|in scadenza/.test(m)) return { kind: "followups" };
+  if (/confront|paragon|punteggio piu alto|punteggi piu alti|migliori|piu caldi|classifica|chi (dovrei|devo|posso)|priorit/.test(m)) return { kind: "compare" };
+  if (/cerca (online|sul web|su internet|in rete)|informazioni online|sul web|su internet|trova informazioni/.test(m)) return { kind: "web", target: hasLead ? null : targetName(message) };
+  if (hasLead && /riassum|riepilog|riassunto|sintesi delle note/.test(m)) return { kind: "summary" };
+  if (/cosa sai|chi e |dimmi (tutto|qualcosa)|informazioni su|parlami di/.test(m) || hasLead) return { kind: "lead_info", target: hasLead ? null : targetName(message) };
   return { kind: "generic" };
 }
 
@@ -393,142 +339,128 @@ function dueFromText(m: string, now: Date): string | null {
   return /ricordami|promemoria/.test(m) ? plus(3) : null;
 }
 
-export type DemoLeadRow = { id: string; name: string; category: string | null; city: string | null; stage: string; stageLabel?: string; score: number | null; nextFollowUp?: string | null; hasPhone?: boolean };
+export type DemoLeadRow = {
+  id: string; name: string; category: string | null; city: string | null; stage: string; stageLabel?: string; score: number | null;
+  scoreDimensions?: Record<string, number> | null; nextFollowUp?: string | null; lastContactAt?: string | null; hasPhone?: boolean;
+};
 export type DemoFollowups = { followups: { leadId: string; name: string; date: string | null; overdue: boolean; stage: string; hasPhone?: boolean }[]; openTasks: { leadId: string; leadName: string; content: string; dueAt: string | null; overdue: boolean }[] };
+export type DemoLeadDetails = {
+  id: string; name: string; category: string | null; city: string | null; address: string | null; phone: string | null; email: string | null;
+  website: string | null; rating: number | null; reviewsCount: number | null; stage: string; score: number | null; value: number | null;
+  contactName: string | null; contactRole: string | null; notes: string | null; nextFollowUp: string | null;
+  scoreReason: { summary?: string } | null;
+  research: (Research & { updatedAt: string | null }) | null;
+  activities: { type: string; content: string; createdAt: string; dueAt: string | null; done: boolean }[];
+};
 
-export function demoAnswerPrioritize(leads: DemoLeadRow[], due: DemoFollowups, seller: SellerProfile) {
-  if (!leads.length && !due.followups.length) {
-    return `Nel tuo CRM non ci sono ancora clienti da cui partire.\n\n**Cosa ti consiglio oggi:**\n1. Vai su **Trova clienti** e cerca ${seller.idealCustomer ? `«${firstSentence(seller.idealCustomer, 60).toLowerCase()}»` : "la categoria che servi meglio"}${seller.territory ? ` in ${seller.territory}` : ""}.\n2. Importa i 10-15 risultati migliori.\n3. Torna qui e chiedimi di nuovo: li ordino per priorità.`;
+const ACT: Record<string, string> = { note: "Nota", call: "Chiamata", email: "Email", meeting: "Visita", task: "Promemoria", stage: "Fase" };
+
+export function demoAnswerCompare(leads: DemoLeadRow[]) {
+  if (!leads.length) return "Nel tuo CRM non ci sono ancora clienti. Puoi aggiungerne da **Trova clienti**.";
+  const scored = leads.filter((l) => l.score != null);
+  const lines = [scored.length ? `Ecco i tuoi ${leads.length === 1 ? "cliente" : `${leads.length} clienti`} con il punteggio più alto:` : "Nessuno di questi clienti ha ancora un punteggio. Ecco i più recenti:", ""];
+  lines.push("| Cliente | Punteggio | Fase | Dimensioni |", "|---|---|---|---|");
+  for (const l of leads) {
+    const dims = l.scoreDimensions ? Object.entries(l.scoreDimensions).map(([k, v]) => `${k} ${v}`).join(", ") : "—";
+    lines.push(`| **${l.name}**${l.city ? ` (${l.city})` : ""} | ${l.score ?? "—"} | ${l.stageLabel ?? stageLabel(l.stage)} | ${dims} |`);
   }
-  const lines: string[] = ["Ecco da chi partirei oggi, in ordine:"];
-  const seen = new Set<string>();
-  let n = 0;
-  for (const f of due.followups.filter((f) => f.overdue).slice(0, 3)) {
-    seen.add(f.leadId);
-    lines.push(`${++n}. **${f.name}** — follow-up scaduto${f.date ? ` dal ${fmtDay(f.date)}` : ""} (${f.stage}). ${f.hasPhone ? "Da chiamare stamattina." : "Non hai il numero: passa di persona."}`);
+  const unscored = leads.length - scored.length;
+  if (unscored) lines.push("", `${unscored === 1 ? "Un cliente non ha" : `${unscored} clienti non hanno`} ancora un punteggio: si calcola con **Valuta** dalla scheda o dalla lista.`);
+  return lines.join("\n");
+}
+
+export function demoAnswerStale(leads: DemoLeadRow[], days: number, stage: string | null) {
+  const what = stage ? `in fase «${stageLabel(stage)}»` : "";
+  const span = days % 7 === 0 ? `${days / 7} ${days === 7 ? "settimana" : "settimane"}` : `${days} giorni`;
+  if (!leads.length) return `Nessun cliente ${what} senza contatti da più di ${span}.`.replace("  ", " ");
+  const lines = [`Clienti ${what} senza chiamate, email o visite registrate da più di ${span}:`.replace("  ", " "), ""];
+  for (const l of leads) {
+    lines.push(`- **${l.name}**${l.city ? ` · ${l.city}` : ""} — ${l.lastContactAt ? `ultimo contatto ${fmtDay(l.lastContactAt)}` : "nessun contatto registrato"}${l.score != null ? ` · punteggio ${l.score}` : ""}${!stage ? ` · ${l.stageLabel ?? stageLabel(l.stage)}` : ""}`);
   }
-  const boost: Record<string, number> = { negotiation: 25, qualified: 15, contacted: 5 };
-  const ranked = [...leads].sort((a, b) => (b.score ?? 45) + (boost[b.stage] ?? 0) - ((a.score ?? 45) + (boost[a.stage] ?? 0)));
-  for (const l of ranked) {
-    if (n >= 5 || seen.has(l.id)) continue;
-    seen.add(l.id);
-    const why = l.score != null && l.score >= 75 ? `punteggio alto (${l.score})` : l.stage === "negotiation" ? "trattativa aperta" : l.stage === "qualified" ? "già qualificato" : l.score != null ? `punteggio ${l.score}` : "ancora da valutare";
-    lines.push(`${++n}. **${l.name}**${l.category ? ` · ${l.category}` : ""}${l.city ? `, ${l.city}` : ""} — ${why}, fase ${l.stageLabel ?? stageLabel(l.stage)}.`);
-  }
-  lines.push("", `**Consiglio:** concentra le chiamate tra le 10 e le 11:30, prima del pranzo.${leads.some((l) => l.score == null) ? " Per i clienti senza punteggio usa **Valuta** nella scheda: così l'ordine diventa più preciso." : ""}`);
-  if (due.openTasks.length) lines.push("", `Hai anche ${due.openTasks.length} ${due.openTasks.length === 1 ? "promemoria aperto" : "promemoria aperti"}: chiedimi «cosa ho in scadenza?» per vederli.`);
   return lines.join("\n");
 }
 
 export function demoAnswerFollowups(due: DemoFollowups) {
-  if (!due.followups.length && !due.openTasks.length) return "Nessun follow-up o promemoria in scadenza nei prossimi 7 giorni. Buon momento per cercare nuovi clienti o richiamare chi è in fase «Contattato» da più tempo.";
+  if (!due.followups.length && !due.openTasks.length) return "Nessun follow-up o promemoria in scadenza nei prossimi 7 giorni.";
   const lines = ["**In scadenza (prossimi 7 giorni):**"];
   for (const f of due.followups) lines.push(`- ${f.overdue ? "**Scaduto** · " : ""}**${f.name}** — ${f.date ? fmtDay(f.date) : "senza data"} · ${f.stage}`);
   for (const t of due.openTasks) lines.push(`- ${t.overdue ? "**Scaduto** · " : ""}${t.leadName}: ${firstSentence(t.content, 90)}${t.dueAt ? ` (${fmtDay(t.dueAt)})` : ""}`);
-  lines.push("", "Parti dagli scaduti: una chiamata breve per riprendere il filo e fissare il passo successivo.");
   return lines.join("\n");
 }
 
-export function demoAnswerEmail(seller: SellerProfile, lead: { name: string; category: string | null; city: string | null; contactName: string | null } | null, target: string | null) {
+/** Cosa sa l'app di un cliente: dati del CRM, punteggio e Scheda AI. */
+export function demoAnswerLeadInfo(d: DemoLeadDetails) {
+  const L = [`Ecco cosa c'è su **${d.name}**${d.category ? ` (${d.category}${d.city ? `, ${d.city}` : ""})` : d.city ? ` (${d.city})` : ""}:`, ""];
+  L.push("**Dal CRM**");
+  const contacts = [d.phone && `tel. ${d.phone}`, d.email, d.website].filter(Boolean).join(" · ");
+  L.push(`- Fase: ${stageLabel(d.stage)}${d.value != null ? ` · valore stimato ${Math.round(d.value).toLocaleString("it-IT")} €` : ""}`);
+  if (d.address) L.push(`- Indirizzo: ${d.address}${d.city ? `, ${d.city}` : ""}`);
+  L.push(`- Recapiti: ${contacts || "nessuno salvato"}`);
+  if (d.contactName) L.push(`- Referente: ${d.contactName}${d.contactRole ? ` (${d.contactRole})` : ""}`);
+  if (d.rating != null) L.push(`- Valutazione: ${fmtRating(d.rating)}/5${d.reviewsCount ? ` su ${d.reviewsCount} recensioni` : ""}`);
+  if (d.score != null) L.push(`- Punteggio AI: ${d.score}/100${d.scoreReason?.summary ? ` — ${d.scoreReason.summary}` : ""}`);
+  if (d.notes) L.push(`- Note: ${firstSentence(d.notes, 160)}`);
+  if (d.nextFollowUp) L.push(`- Prossimo follow-up: ${fmtDay(d.nextFollowUp)}`);
+  const acts = d.activities.filter((a) => a.type !== "stage").slice(0, 3);
+  if (acts.length) {
+    L.push("", "**Ultime attività**");
+    for (const a of acts) L.push(`- ${fmtDay(a.createdAt)} · ${ACT[a.type] ?? a.type}: ${firstSentence(a.content, 110)}`);
+  }
+  if (d.research) {
+    L.push("", `**Scheda AI**${d.research.updatedAt ? ` (aggiornata ${fmtDay(d.research.updatedAt)})` : ""}`, d.research.summary);
+    for (const s of d.research.signals.slice(0, 3)) L.push(`- ${s.label}: ${s.detail}`);
+  } else {
+    L.push("", "Non c'è ancora una **Scheda AI** con le informazioni pubbliche: si compila dalla scheda del cliente con **Cerca informazioni**.");
+  }
+  return L.join("\n");
+}
+
+export function demoAnswerWeb(d: DemoLeadDetails | null, target: string | null) {
+  const intro = "In modalità dimostrativa non eseguo ricerche sul web: con la chiave API attiva cerco sito, schede, recensioni, persone e notizie e cito le fonti.";
+  if (!d) return `${intro}\n\n${target ? `Non ho trovato «${target}» nel tuo CRM.` : "Dimmi il nome dell'attività che ti interessa."}`;
+  return `${intro}\n\nNel frattempo, ecco i dati che ho già su **${d.name}**:\n\n${demoAnswerLeadInfo(d).split("\n").slice(2).join("\n")}`;
+}
+
+export function demoAnswerSummary(d: DemoLeadDetails) {
+  const acts = d.activities.filter((a) => a.type !== "stage");
+  if (!acts.length && !d.notes) return `Su **${d.name}** non ci sono ancora note o attività registrate.`;
+  const L = [`Riepilogo di note e attività su **${d.name}**:`, ""];
+  if (d.notes) L.push(`- **Note:** ${firstSentence(d.notes, 200)}`);
+  for (const a of acts.slice(0, 8)) L.push(`- ${fmtDay(a.createdAt)} · ${ACT[a.type] ?? a.type}: ${firstSentence(a.content, 120)}${a.type === "task" ? (a.done ? " (fatto)" : " (da fare)") : ""}`);
+  const open = acts.filter((a) => a.type === "task" && !a.done).length;
+  L.push("", `${acts.length} ${acts.length === 1 ? "attività" : "attività"} in totale${open ? `, ${open} ${open === 1 ? "promemoria aperto" : "promemoria aperti"}` : ""}.`);
+  return L.join("\n");
+}
+
+/** Bozza di messaggio, solo su richiesta esplicita: testo neutro, senza tattiche. */
+export function demoAnswerEmail(seller: SellerProfile, lead: { name: string; city: string | null; contactName: string | null } | null, target: string | null) {
   const name = lead?.name ?? target ?? "[Nome attività]";
-  const contact = lead?.contactName ? `Gentile ${lead.contactName},` : "Buongiorno,";
-  const fam = familyOf(lead?.category) ?? familyOf(lead?.name);
-  const peers = fam ? `attività di ${FAMILIES[fam].label} come la vostra` : "attività come la vostra";
-  const offer = seller.products ? lower(seller.products.replace(/\s+/g, " ").trim().replace(/[.;]$/, "")) : null;
   return [
-    `Ecco una bozza di primo contatto per **${name}**, ${seller.tone ? `con tono ${seller.tone.toLowerCase()}` : "pronta da inviare"}:`,
+    `Ecco una bozza per **${name}**:`,
     "",
-    `**Oggetto:** Una proposta per ${name}${lead?.city ? ` — ${lead.city}` : ""}`,
+    `**Oggetto:** ${seller.company ?? seller.name} — ${name}`,
     "",
-    contact,
+    lead?.contactName ? `Gentile ${lead.contactName},` : "Buongiorno,",
     "",
-    `mi chiamo ${seller.name}${seller.company ? ` e seguo ${seller.company}` : ""}${seller.territory ? ` in ${seller.territory}` : ""}. Lavoro ogni giorno con ${peers}${seller.sector ? ` e mi occupo di ${lower(seller.sector)}` : ""}.`,
+    `sono ${seller.name}${seller.company ? ` di ${seller.company}` : ""}${seller.territory ? ` e lavoro in ${seller.territory}` : ""}. [Motivo del messaggio]`,
     "",
-    `Le scrivo perché credo di poterle offrire qualcosa di concreto${offer ? `: ${offer}` : ": condizioni chiare, assistenza rapida e un referente sempre raggiungibile"}.`,
-    "",
-    "Le propongo un incontro di 15 minuti da voi, nel giorno e nell'orario che preferisce: porto qualche campione e valutiamo insieme se ha senso.",
-    "",
-    "Grazie per l'attenzione, resto a disposizione.",
+    "Resto a disposizione per qualsiasi informazione.",
     "",
     `${seller.name}${seller.company ? `  \n${seller.company}` : ""}  \n[Telefono]`,
-    "",
-    "---",
-    "**Perché funziona:** è breve, parla del suo lavoro prima che del tuo, chiude con una richiesta piccola e precisa. Se non risponde, richiama dopo 3 giorni lavorativi.",
-  ].join("\n");
-}
-
-export function demoAnswerObjection(objection: string, seller: SellerProfile) {
-  const items = productItems(seller.products);
-  const value = items[0] ?? "il servizio";
-  const o = norm(objection);
-  if (/car|prezzo|costa/.test(o)) {
-    return [
-      `**«${objection}»** è quasi sempre una richiesta di chiarezza sul valore, non un no. Tre passi:`,
-      "",
-      "1. **Accogli e chiedi il riferimento** — «Capisco. Rispetto a cosa le sembra caro: al fornitore attuale o al budget che aveva in mente?»",
-      `2. **Sposta sul costo totale** — «Guardiamo il conto a fine mese: con ${value.toLowerCase()} risparmia [tempo/scarti/fermi]. Su un anno quanto vale per lei?»`,
-      "3. **Riduci il rischio, non il prezzo** — «Facciamo così: partiamo con una prova di due settimane. Se non vede la differenza, ci salutiamo da amici.»",
-      "",
-      "**Da evitare:** lo sconto immediato. Se devi concedere qualcosa, scambialo: *«Posso venirle incontro sul prezzo se partiamo con l'ordine annuale.»*",
-    ].join("\n");
-  }
-  if (/fornitore/.test(o)) {
-    return `**«${objection}»** — rispondi con rispetto e curiosità:\n\n> «Ottimo, vuol dire che sa cosa cerca. Cosa le piace di più del suo fornitore? E se potesse cambiare una cosa, quale sarebbe?»\n\nDalla risposta capisci dove inserirti. Poi proponi una **prova in parallelo** su un solo prodotto: nessuno deve "tradire" il fornitore storico per provare.`;
-  }
-  if (/tempo/.test(o)) {
-    return `**«${objection}»** — rispetta il suo tempo e ottieni un impegno piccolo:\n\n> «Ci mancherebbe, la vedo impegnatissimo. Mi dice lei un momento più tranquillo questa settimana? Mi bastano dieci minuti.»\n\nSegna subito data e ora nel CRM: un appuntamento concordato vale dieci passaggi a vuoto.`;
-  }
-  return `**«${objection}»** — prima di rispondere, fai una domanda per capire cosa c'è dietro:\n\n> «La capisco. Posso chiederle cosa la frena di più: il momento, le condizioni o qualcos'altro?»\n\nPoi rispondi solo al motivo vero, con un esempio concreto di un cliente simile e una proposta a basso rischio (prova, campione, ordine minimo).`;
-}
-
-export function demoAnswerPlan(leads: DemoLeadRow[], seller: SellerProfile, now = new Date()) {
-  if (!leads.length) return "Non ho trovato clienti attivi nel CRM da inserire in un piano visite. Importa qualche lead da **Trova clienti** e riprova: li raggruppo per zona e priorità.";
-  const byCity = new Map<string, DemoLeadRow[]>();
-  for (const l of leads) {
-    const c = l.city ?? "Zona non indicata";
-    byCity.set(c, [...(byCity.get(c) ?? []), l]);
-  }
-  const groups = [...byCity.entries()].sort((a, b) => b[1].length - a[1].length);
-  const days = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
-  const start = (now.getUTCDay() + 6) % 7; // 0 = lunedì
-  const lines = [`Ecco una proposta di giro visite${seller.territory ? ` in ${seller.territory}` : ""}, raggruppata per zona per ridurre i chilometri:`, ""];
-  groups.slice(0, 5).forEach(([city, ls], i) => {
-    const d = days[Math.min(4, start > 4 ? i : start + i)] ?? days[i];
-    const sorted = [...ls].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)).slice(0, 4);
-    lines.push(`**${d} — ${city}**`);
-    for (const l of sorted) lines.push(`- ${l.name}${l.category ? ` (${l.category})` : ""} · ${l.stageLabel ?? stageLabel(l.stage)}${l.score != null ? ` · punteggio ${l.score}` : ""}`);
-    lines.push("");
-  });
-  lines.push("**Suggerimenti:** visita prima i clienti in trattativa e qualificati, poi i nuovi con punteggio alto. Prepara il briefing di ogni visita dalla scheda cliente: ci vuole un minuto.");
-  return lines.join("\n");
-}
-
-export function demoAnswerLeadAdvice(lead: { name: string; category: string | null; stage: string; score: number | null; nextFollowUp: Date | string | null }, seller: SellerProfile) {
-  const fam = familyOf(lead.category) ?? familyOf(lead.name);
-  const pb = FAMILY_PLAYBOOK[fam ?? "generic"];
-  return [
-    `Su **${lead.name}** (${stageLabel(lead.stage)}${lead.score != null ? `, punteggio ${lead.score}` : ""}) farei così:`,
-    "",
-    `- **Obiettivo del prossimo contatto:** ${lead.stage === "new" ? "farti conoscere e fissare una visita breve" : lead.stage === "negotiation" ? "chiudere l'ordine di prova" : "portarlo al passo successivo con una proposta concreta"}.`,
-    `- **Leva principale:** ${pb.pains[0]}${productItems(seller.products)[0] ? `, collegata a ${productItems(seller.products)[0].toLowerCase()}` : ""}.`,
-    `- **Quando:** ${pb.moment}`,
-    `- **Domanda chiave:** «${pb.questions[0]}»`,
-    "",
-    lead.nextFollowUp ? `Hai un follow-up previsto per il ${fmtDay(lead.nextFollowUp)}.` : "Non c'è un follow-up in agenda: dimmi «ricordami di richiamarlo giovedì» e lo registro io.",
   ].join("\n");
 }
 
 export function demoAnswerGeneric(message: string, seller: SellerProfile) {
   return [
-    `Posso aiutarti con questo. In modalità dimostrativa le mie risposte sono di esempio, ma usano i dati reali del tuo CRM${seller.sector ? ` e del tuo profilo (${seller.sector})` : ""}.`,
+    `In modalità dimostrativa le mie risposte sono di esempio, ma usano i dati reali del tuo CRM${seller.sector ? ` e del tuo profilo (${seller.sector})` : ""}.`,
     "",
     "Prova a chiedermi:",
-    "- **Chi dovrei chiamare oggi?** — ordino i clienti per priorità e follow-up scaduti",
-    "- **Scrivimi un'email di primo contatto per** [nome cliente]",
-    "- **Come rispondo a «costa troppo»?**",
-    "- **Prepara un piano visite per questa settimana**",
+    "- **Cosa sai di** [nome cliente]?",
+    "- **Quali clienti in Trattativa non sento da 2 settimane?**",
+    "- **Confronta i miei 5 clienti con punteggio più alto**",
+    "- **Trova informazioni online su** [nome attività]",
     "",
-    `Con la chiave API attiva risponderò in modo completo anche a richieste libere come: «${firstSentence(message, 80)}».`,
+    `Con la chiave API attiva rispondo anche a richieste libere come: «${firstSentence(message, 80)}».`,
   ].join("\n");
 }
 
@@ -558,8 +490,11 @@ export function demoTitle(message: string) {
 
 /* ---------------------------------- util ---------------------------------- */
 
-function lower(s: string) {
-  return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+function firstSentence(s: string | null | undefined, max = 140) {
+  if (!s) return "";
+  const t = s.replace(/\s+/g, " ").trim();
+  const cut = t.split(/(?<=[.!?;])\s/)[0] ?? t;
+  return cut.length > max ? `${cut.slice(0, max - 1).trimEnd()}…` : cut.replace(/[.;]$/, "");
 }
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);

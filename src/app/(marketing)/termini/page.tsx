@@ -28,7 +28,7 @@ export default function TerminiPage() {
         {
           h: "Contenuti generati dall'AI",
           p: [
-            "Punteggi, briefing e testi dell'assistente sono suggerimenti. Possono contenere imprecisioni: verifica sempre le informazioni importanti prima di usarle con un cliente.",
+            "Punteggi, Schede AI e risposte dell'assistente sono generati automaticamente a partire da dati pubblici e da quelli che inserisci. Possono contenere imprecisioni: verifica sempre le informazioni importanti prima di usarle con un cliente.",
           ],
         },
         {

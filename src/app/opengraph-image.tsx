@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "Agentipro — Meno giri a vuoto, più strette di mano. Il CRM con l'AI per agenti di commercio.";
+export const alt = "Agentipro — Trova clienti nella tua zona e conoscili con l'AI. Il CRM con l'AI per agenti di commercio.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -57,7 +57,7 @@ export default async function OpengraphImage() {
             <div style={{ fontFamily: "Instrument Serif", fontSize: 32, color: INK }}>Studio Ferri</div>
             <div style={{ fontFamily: "Geist Mono", fontSize: 30, color: ACCENT }}>91</div>
           </div>
-          <div style={{ fontSize: 16, color: INK2, marginTop: 4 }}>Briefing pronto</div>
+          <div style={{ fontSize: 16, color: INK2, marginTop: 4 }}>Scheda AI pronta</div>
         </div>
 
         {/* Testo */}
@@ -71,8 +71,8 @@ export default async function OpengraphImage() {
             <div style={{ fontSize: 30, color: INK, letterSpacing: -0.5 }}>Agentipro</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontFamily: "Instrument Serif", fontSize: 86, lineHeight: 0.95, color: INK, letterSpacing: -2 }}>Meno giri a vuoto.</div>
-            <div style={{ fontFamily: "Instrument Serif Italic", fontSize: 86, lineHeight: 1.02, color: ACCENT, letterSpacing: -2 }}>Più strette di mano.</div>
+            <div style={{ fontFamily: "Instrument Serif", fontSize: 72, lineHeight: 0.95, color: INK, letterSpacing: -2 }}>Trova clienti nella tua zona.</div>
+            <div style={{ fontFamily: "Instrument Serif Italic", fontSize: 72, lineHeight: 1.02, color: ACCENT, letterSpacing: -2 }}>Conoscili con l&apos;AI.</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "Geist Mono", fontSize: 18, letterSpacing: 2.5, color: INK2, borderTop: `2px solid ${LINE}`, paddingTop: 22, width: 600 }}>
             IL CRM CON L&apos;AI PER AGENTI DI COMMERCIO

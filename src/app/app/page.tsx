@@ -49,7 +49,7 @@ export default async function TodayPage() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-medium text-accent">Primo passo</span>
               <h2 className="mt-4 font-display text-[30px] leading-tight tracking-tight">Trova i tuoi primi clienti</h2>
               <p className="mt-2 max-w-md text-sm leading-relaxed text-ink-2">
-                Cerca bar, ristoranti, negozi o qualsiasi attività nella tua zona. Agentipro li raccoglie, li valuta con l&apos;AI e ti dice chi chiamare per primo.
+                Cerca bar, ristoranti, negozi o qualsiasi attività nella tua zona. Agentipro li raccoglie nel CRM e l&apos;AI li valuta secondo i tuoi criteri.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Link href="/app/search"><Button variant="secondary" size="lg"><Search className="h-4 w-4" />Trova i tuoi primi clienti</Button></Link>
@@ -99,10 +99,10 @@ export default async function TodayPage() {
         </Card>
 
         <Card className="p-5 sm:p-6">
-          <SectionTitle icon={<Flame className="h-4 w-4 text-hot" />} title="Lead più caldi" right={<Link href="/app/leads?stage=new&sort=score" className="text-[12.5px] font-medium text-ink-2 hover:text-ink">Vedi tutti</Link>} />
+          <SectionTitle icon={<Flame className="h-4 w-4 text-hot" />} title="Punteggio più alto" right={<Link href="/app/leads?stage=new&sort=score" className="text-[12.5px] font-medium text-ink-2 hover:text-ink">Vedi tutti</Link>} />
           {data.hotLeads.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line-strong px-4 py-8 text-center text-[13px] text-ink-3">
-              Nessun nuovo cliente valutato. Usa “Valuta con AI” nella lista clienti per scoprire chi chiamare per primo.
+              Nessun nuovo cliente valutato. Usa “Valuta con AI” nella lista clienti per calcolare il punteggio.
             </p>
           ) : (
             <ul className="-mx-2">
@@ -196,7 +196,7 @@ function ProfileCta() {
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-ink-2"><UserRoundPen className="h-5 w-5" /></span>
       <div className="flex-1">
         <p className="font-semibold">Completa il profilo</p>
-        <p className="text-[13px] text-ink-2">Racconta cosa vendi e chi è il tuo cliente ideale: punteggi e briefing dell&apos;AI saranno molto più precisi.</p>
+        <p className="text-[13px] text-ink-2">Racconta cosa vendi e chi è il tuo cliente ideale: il punteggio e le risposte dell&apos;AI terranno conto di ciò che conta per te.</p>
       </div>
       <Link href="/app/settings"><Button variant="outline">Completa il profilo</Button></Link>
     </Card>

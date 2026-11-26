@@ -76,7 +76,7 @@ export function LeadHeader({ lead: initial }: { lead: LeadDTO }) {
         onConfirm={(r) => { setAskLost(false); patch({ stage: "lost", lostReason: r }, { success: "Segnato come perso" }); }} />
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Eliminare questo cliente?">
         <p className="text-sm text-ink-2">
-          <span className="font-medium text-ink">{lead.name}</span> verrà eliminato insieme a note, attività e briefing. L&apos;operazione non si può annullare.
+          <span className="font-medium text-ink">{lead.name}</span> verrà eliminato insieme a note, attività e Scheda AI. L&apos;operazione non si può annullare.
         </p>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Annulla</Button>
@@ -207,7 +207,7 @@ export function AskAssistantCard({ leadId, name }: { leadId: string; name: strin
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent"><Sparkles className="h-5 w-5" /></span>
       <span className="min-w-0">
         <span className="block text-sm font-semibold">Chiedi all&apos;assistente su questo cliente</span>
-        <span className="block truncate text-[12.5px] text-ink-3">Strategia, obiezioni, email di follow-up per {name}</span>
+        <span className="block truncate text-[12.5px] text-ink-3">Domande su {name}, note, informazioni dal web</span>
       </span>
     </Link>
   );

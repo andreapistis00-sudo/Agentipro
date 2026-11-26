@@ -3,8 +3,8 @@ import type { Activity, Lead, User } from "@prisma/client";
 import { stageLabel } from "@/lib/utils";
 
 export type SellerProfile = Pick<User, "name" | "company" | "sector" | "products" | "idealCustomer" | "territory" | "tone">;
-export type LeadForAi = Omit<Lead, "userId" | "position" | "briefing" | "briefingAt" | "scoreReason" | "scoredAt" | "sourceId"> &
-  Partial<Pick<Lead, "briefing" | "briefingAt" | "scoreReason" | "scoredAt">>;
+export type LeadForAi = Omit<Lead, "userId" | "position" | "briefing" | "briefingAt" | "scoreReason" | "scoreBreakdown" | "scoredAt" | "sourceId"> &
+  Partial<Pick<Lead, "briefing" | "briefingAt" | "scoreReason" | "scoreBreakdown" | "scoredAt">>;
 export type ActivityForAi = Pick<Activity, "type" | "content" | "dueAt" | "done" | "createdAt">;
 
 const ACTIVITY_LABEL: Record<string, string> = {

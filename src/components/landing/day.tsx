@@ -2,14 +2,14 @@ import { Container, H2, Kicker } from "./shared";
 import { Reveal } from "./reveal";
 
 const ENTRIES = [
-  { t: "07:45", h: "Caffè al banco, giro già pronto.", p: "Apri «Oggi»: tre richiami in scadenza, due trattative calde e le visite in ordine di strada. Lo leggi prima che arrivi la brioche." },
+  { t: "07:45", h: "Caffè al banco, pagina «Oggi».", p: "Tre promemoria in scadenza, i clienti nuovi con il punteggio più alto e le ultime attività. Lo leggi prima che arrivi la brioche." },
   { t: "08:30", h: "Venti parrucchieri nuovi in dieci minuti.", p: "Cerchi «parrucchieri, Desenzano, 8 km». Arrivano nomi, telefoni, orari e distanza. Salvi i sei che ti interessano con un clic ciascuno." },
-  { t: "09:15", h: "Chiami prima chi vale di più.", p: "Ogni lead ha il suo punteggio. Parti dal 91: lo Studio Ferri ha appena aperto la seconda sede. Il 38 può aspettare venerdì." },
-  { t: "11:40", h: "Parcheggiato davanti, briefing in mano.", p: "Due minuti in macchina: cosa fa l'attività, la frase per rompere il ghiaccio, le obiezioni probabili e cosa rispondere. Entri sapendo dove vuoi arrivare." },
-  { t: "13:10", h: "Pranzo. L'email l'ha scritta lui.", p: "«Manda a Rinaldi il riepilogo dell'offerta con lo sconto dell'8%.» Rileggi, cambi una parola, invii. Il primo è ancora caldo." },
-  { t: "16:30", h: "«Costa troppo.» Lo sapevi già.", p: "L'obiezione era nel briefing, con la risposta. La trattativa si sposta di una colonna: basta trascinarla." },
-  { t: "18:45", h: "Ultima nota, prima di ripartire.", p: "Scrivi com'è andata, metti il promemoria per giovedì. La pipeline si aggiorna da sola: 14.200 € aperti." },
-  { t: "19:30", h: "A casa. Il giro di domani è già lì.", p: "" },
+  { t: "09:15", h: "Il punteggio, voce per voce.", p: "Lo Studio Ferri fa 91: aderenza 97, reputazione 88, a due chilometri dal tuo giro. Il Bar Sport fa 38: fuori zona e con poche recensioni. Vedi il perché di ogni numero." },
+  { t: "11:40", h: "La Scheda AI della Pasticceria Rinaldi.", p: "Laboratorio dal 1987, due punti vendita, la titolare citata dal giornale locale, recensioni che lodano i lievitati e criticano l'attesa al banco. Ogni dato con la sua fonte." },
+  { t: "13:10", h: "Una domanda all'assistente.", p: "«Quali clienti in Trattativa non sento da due settimane?» Tre nomi, con la data dell'ultimo contatto e il punteggio di ciascuno." },
+  { t: "16:30", h: "Pesi tuoi, classifica tua.", p: "Per te conta più la vicinanza della dimensione: sposti due cursori nel profilo e tutti i punteggi si ricalcolano, senza consumare crediti." },
+  { t: "18:45", h: "Ultima nota, prima di ripartire.", p: "Scrivi com'è andata, metti il promemoria per giovedì, sposti la scheda di una colonna in pipeline: 14.200 € aperti." },
+  { t: "19:30", h: "Tutto salvato, anche dal telefono.", p: "" },
 ];
 
 const ODOMETER = [
@@ -29,7 +29,7 @@ export function Day() {
             Martedì. <span className="italic text-ink-2">Dall&apos;espresso all&apos;ultima nota.</span>
           </H2>
           <p className="mt-6 max-w-md text-[16.5px] leading-relaxed text-ink-2">
-            Una giornata qualsiasi, quando la ricerca, la preparazione e le scartoffie le fa qualcun altro. Tu guidi, parli, chiudi.
+            Una giornata qualsiasi con Agentipro: trovare attività nuove, sapere chi sono, valutarle e tenere in ordine il lavoro.
           </p>
           <dl className="mt-10 grid max-w-md grid-cols-4 divide-x divide-line rounded-2xl border border-line bg-surface">
             {ODOMETER.map(([v, l]) => (

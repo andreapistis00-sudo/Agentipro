@@ -68,7 +68,17 @@ export function aiRateLimit(userId: string, feature: "chat" | "briefing" | "scor
 }
 
 /** Messaggio d'errore in italiano per l'utente, a partire dalle eccezioni tipizzate dell'SDK. */
+export const AI_UNAVAILABLE = "Il servizio AI non è momentaneamente disponibile. Riprova più tardi.";
+
+/** Errore 400 di Anthropic per credito dell'account API esaurito: non è un problema dell'utente, non va esposto. */
+export function isProviderBillingError(err: unknown) {
+  if (!(err instanceof Anthropic.APIError)) return false;
+  const text = `${err.message} ${JSON.stringify((err as { error?: unknown }).error ?? "")}`.toLowerCase();
+  return /credit balance|billing|purchase credits/.test(text);
+}
+
 export function aiErrorMessage(err: unknown): string {
+  if (isProviderBillingError(err)) return AI_UNAVAILABLE;
   if (err instanceof Anthropic.AuthenticationError) return "Chiave API di Claude non valida: controlla ANTHROPIC_API_KEY.";
   if (err instanceof Anthropic.PermissionDeniedError) return "La chiave API non ha i permessi per questo modello.";
   if (err instanceof Anthropic.RateLimitError) return "Troppe richieste a Claude in questo momento: riprova tra qualche secondo.";

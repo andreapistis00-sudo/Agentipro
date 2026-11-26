@@ -16,11 +16,11 @@ export const FAQS = [
   },
   {
     q: "Come fa l'AI a sapere chi è un buon cliente per me?",
-    a: "Glielo dici tu, una volta: cosa vendi, in che zona, chi è il tuo cliente ideale. Il punteggio arriva sempre con i motivi a favore e contro, così puoi giudicare. L'ultima parola resta tua.",
+    a: "Glielo dici tu: cosa vendi, in che zona, chi è il tuo cliente ideale e, se vuoi, i tuoi criteri con parole tue. Il punteggio è diviso in sei dimensioni, ognuna con la sua motivazione e un peso che regoli tu; il totale è la media pesata, calcolata in modo trasparente.",
   },
   {
-    q: "Il briefing si può inventare le cose?",
-    a: "Il briefing parte dai dati dell'attività e, se lo chiedi, da una ricerca sul web. È un aiuto a prepararti, non un dossier certificato: i dettagli importanti, come nomi e numeri, verificali sempre.",
+    q: "La Scheda AI può inventare le cose?",
+    a: "La scheda raccoglie informazioni pubbliche trovate sul web e indica la fonte di ogni dato. Quello che non si trova non viene inventato: finisce tra le cose da verificare, e ogni scheda ha un livello di affidabilità (alta, media o bassa). Resta un riassunto automatico: i dettagli importanti, come nomi e numeri, conviene sempre controllarli.",
   },
   {
     q: "I miei clienti li vede qualcun altro?",
@@ -32,7 +32,7 @@ export const FAQS = [
   },
   {
     q: "Quanto costa? Serve la carta di credito per provare?",
-    a: `No, per provare non serve: crei l'account e ricevi ${SIGNUP_CREDITS} crediti gratis. Le funzioni AI usano crediti (${cr(creditCost("score"))} per un punteggio, ${cr(creditCost("chat"))} per un messaggio all'assistente, ${cr(creditCost("briefing"))} per un briefing), mentre ricerca, CRM e pipeline sono sempre gratis. Quando finiscono ricarichi un pacchetto${firstPack ? `, da ${(firstPack.priceCents / 100).toLocaleString("it-IT")} € per ${firstPack.credits} crediti` : ""}: nessun abbonamento, paghi solo quello che usi.`,
+    a: `No, per provare non serve: crei l'account e ricevi ${SIGNUP_CREDITS} crediti gratis. Le funzioni AI usano crediti (${cr(creditCost("score"))} per un punteggio, ${cr(creditCost("chat"))} per un messaggio all'assistente, ${cr(creditCost("briefing"))} per una Scheda AI), mentre ricerca, CRM e pipeline sono sempre gratis. Quando finiscono ricarichi un pacchetto${firstPack ? `, da ${(firstPack.priceCents / 100).toLocaleString("it-IT")} € per ${firstPack.credits} crediti` : ""}: nessun abbonamento, paghi solo quello che usi.`,
   },
 ];
 

@@ -1,15 +1,15 @@
 # Agentipro
 
-**Il copilota per gli agenti di commercio.** Trova nuove attività nella tua zona, scopri chi chiamare per primo e arriva a ogni visita con un briefing pronto.
+**Il CRM con l'AI per agenti di commercio.** Trova le attività della tua zona, conoscile con le informazioni pubbliche raccolte dall'AI, valutale con un punteggio basato sui tuoi criteri e organizzale in pipeline.
 
 ## Funzionalità
 
 - **Trova clienti**: cerca per categoria ("bar", "parrucchieri", "studi dentistici"…) e luogo con un raggio in km. I dati vengono da OpenStreetMap (gratis) e, se configuri la chiave, da Google Places (telefono, rating, recensioni più completi). Salvi i risultati nel CRM con un clic.
-- **Lead score AI**: un punteggio da 0 a 100 per ogni lead, con i motivi, calibrato su ciò che vendi e sul tuo cliente ideale.
-- **Briefing pre-visita**: una scheda generata dall'AI, anche con ricerche web: frase d'apertura, punti da toccare, obiezioni probabili con le risposte, offerta da proporre e domande da fare.
-- **Assistente AI**: una chat che conosce il tuo CRM. Ti dice chi richiamare, scrive email e messaggi, prepara il piano visite e risponde alle obiezioni.
+- **Punteggio AI**: ogni cliente riceve sei sotto-punteggi 0-100 (aderenza, dimensione, reputazione, presenza online, vicinanza, completezza dati), ciascuno con la motivazione, più affidabilità e fattori +/−. Il totale è la **media pesata calcolata dall'app** con i pesi scelti nel Profilo (0-5 per dimensione): cambiando i pesi i totali si ricalcolano subito, senza chiamare l'AI. Nel Profilo si scrivono anche i propri criteri ("Come valuti un cliente"), che il modello usa nelle valutazioni successive.
+- **Scheda AI**: ricerca di informazioni pubbliche sul cliente (ricerca web + sintesi strutturata): chi è, cosa offre, orari, sedi, persone citate, presenza online, recensioni (positivi/negativi), fatti, segnali, cose da verificare e fonti, con un livello di affidabilità. Solo fatti, nessun consiglio commerciale. Se trova recapiti che mancano, propone di salvarli nella scheda cliente.
+- **Assistente di ricerca**: una chat che conosce il tuo CRM e cerca sul web: cosa sai di un cliente, chi non senti da un certo tempo, confronti tra clienti, riassunti delle note; registra note e promemoria su richiesta.
 - **CRM e pipeline**: le fasi Nuovo → Contattato → Qualificato → Trattativa → Vinto/Perso, con drag & drop, note, attività, promemoria, valore della pipeline ed export CSV.
-- **Oggi**: una dashboard con i follow-up in scadenza, i lead più caldi e i numeri che contano.
+- **Oggi**: una dashboard con i follow-up in scadenza, i clienti con il punteggio più alto e i numeri che contano.
 - **Crediti AI**: le funzioni AI consumano crediti; ogni nuovo utente ne riceve 50 gratis e ricarica con **Stripe Checkout** (vedi [Crediti e pagamenti](#crediti-e-pagamenti)).
 - Multi-utente con login, responsive, tema chiaro/scuro.
 
@@ -35,8 +35,8 @@ Apri http://localhost:3000. Con il seed puoi accedere come `demo@agentipro.it` /
 | `APP_URL` | in produzione | URL pubblico, usato per le anteprime social (default `http://localhost:3000`). |
 | `AUTH_SECRET` | sì in produzione | Segreto per firmare la sessione (`openssl rand -base64 32`). |
 | `ANTHROPIC_API_KEY` | no | Chiave per Claude. Senza chiave le funzioni AI girano in **modalità demo** con risposte di esempio. |
-| `AI_MODEL_SMART` | no | Modello per chat e briefing (default `claude-sonnet-5-5`). |
-| `AI_MODEL_FAST` | no | Modello per il lead score massivo (default `claude-haiku-5-5`). |
+| `AI_MODEL_SMART` | no | Modello per assistente e Scheda AI (default `claude-sonnet-5-5`). |
+| `AI_MODEL_FAST` | no | Modello per il punteggio AI (default `claude-haiku-5-5`). |
 | `GOOGLE_PLACES_API_KEY` | no | Abilita Google Places (API New). Senza chiave si usa OpenStreetMap. |
 | `SEARCH_COUNTRYCODES` | no | Paesi in cui cercare i luoghi (default `it`; vuoto = tutto il mondo). |
 | `LEADS_DEMO_MODE` | no | `true` forza risultati di ricerca dimostrativi (utile offline). |
@@ -44,14 +44,14 @@ Apri http://localhost:3000. Con il seed puoi accedere come `demo@agentipro.it` /
 | `STRIPE_WEBHOOK_SECRET` | consigliata | Segreto di firma del webhook (`whsec_…`), vedi sotto. |
 | `CREDIT_COST_SCORE` | no | Crediti per ogni lead valutato (default `1`). |
 | `CREDIT_COST_CHAT` | no | Crediti per ogni messaggio all'assistente (default `2`). |
-| `CREDIT_COST_BRIEFING` | no | Crediti per ogni briefing pre-visita (default `5`). |
+| `CREDIT_COST_BRIEFING` | no | Crediti per ogni Scheda AI (ricerca sul cliente, default `5`). |
 | `CREDIT_PACKS` | no | Pacchetti di ricarica `prezzoInCentesimi:crediti` separati da virgola (default `500:100,2000:500,5000:1500`). |
 
 ## Crediti e pagamenti
 
 - Ogni nuovo utente parte con **50 crediti gratis** (anche gli utenti già esistenti, grazie al default dello schema).
-- Costi predefiniti: **1 credito** per lead valutato, **2** per messaggio all'assistente, **5** per briefing pre-visita (configurabili con `CREDIT_COST_*`). Ricerca, CRM, pipeline ed export sono gratuiti.
-- I crediti si scalano **solo con l'AI reale** (`ANTHROPIC_API_KEY` impostata): in modalità demo non si consuma nulla. L'addebito avviene prima della chiamata ed è atomico; se l'operazione fallisce per un errore i crediti vengono rimborsati (score: solo per i lead non valutati; chat: non se l'utente interrompe la risposta). Senza saldo sufficiente le API rispondono `402` con `{ error: "Crediti esauriti", code: "INSUFFICIENT_CREDITS", needed, balance }`.
+- Costi predefiniti: **1 credito** per lead valutato, **2** per messaggio all'assistente, **5** per Scheda AI (configurabili con `CREDIT_COST_*`). Ricerca, CRM, pipeline ed export sono gratuiti.
+- I crediti si scalano **solo con l'AI reale** (`ANTHROPIC_API_KEY` impostata): in modalità demo non si consuma nulla. L'addebito avviene prima della chiamata ed è atomico; se l'operazione fallisce per un errore i crediti vengono rimborsati (anche quando il servizio AI non è disponibile, ad esempio per credito esaurito sull'account Anthropic: all'utente compare solo "Il servizio AI non è momentaneamente disponibile") (score: solo per i lead non valutati; chat: non se l'utente interrompe la risposta). Senza saldo sufficiente le API rispondono `402` con `{ error: "Crediti esauriti", code: "INSUFFICIENT_CREDITS", needed, balance }`.
 - Pacchetti predefiniti: **5 € → 100 crediti**, **20 € → 500 crediti**, **50 € → 1.500 crediti** (`CREDIT_PACKS`). Pagina `/app/credits`: saldo, costi, pacchetti e storico movimenti.
 
 ### Configurare Stripe

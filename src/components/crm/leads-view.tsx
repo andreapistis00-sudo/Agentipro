@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, Phone, Search, Sparkles, Trash2, Users, X, ArrowRightLeft, SlidersHorizontal } from "lucide-react";
+import { ScoreHover } from "@/components/ai/score-hover";
 import { Button, Dialog, EmptyState, Input, ScoreBadge, Select, StageBadge, useToast } from "@/components/ui";
 import { cn, formatEuro, STAGES } from "@/lib/utils";
 import { relativeTime } from "@/lib/utils";
@@ -211,7 +212,7 @@ export function LeadsView({ leads, total, pages, query, tags, hasAnyLead }: {
                       <div className="truncate text-[12.5px] text-ink-3">{[l.category, l.city].filter(Boolean).join(" · ") || "—"}</div>
                     </td>
                     <td className="py-3 pr-3"><StageBadge stage={l.stage} /></td>
-                    <td className="py-3 pr-3"><ScoreBadge score={l.score} /></td>
+                    <td className="py-3 pr-3"><ScoreHover score={l.score} scoreBreakdown={l.scoreBreakdown} /></td>
                     <td className="py-3 pr-3 text-right tabular-nums">{formatEuro(l.value)}</td>
                     <td className="py-3 pr-3 pl-3"><FollowUpBadge date={l.nextFollowUp} /></td>
                     <td className="hidden py-3 pr-3 text-[12.5px] text-ink-3 xl:table-cell" suppressHydrationWarning>{relativeTime(l.updatedAt)}</td>
@@ -306,7 +307,7 @@ export function LeadsView({ leads, total, pages, query, tags, hasAnyLead }: {
       )}
 
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title={sel.size === 1 ? "Eliminare il cliente?" : `Eliminare ${sel.size} clienti?`}>
-        <p className="text-sm text-ink-2">Verranno eliminati anche note, attività e briefing collegati. L&apos;operazione non si può annullare.</p>
+        <p className="text-sm text-ink-2">Verranno eliminati anche note, attività e Schede AI collegate. L&apos;operazione non si può annullare.</p>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Annulla</Button>
           <Button variant="danger" onClick={bulkDelete} loading={busy === "delete"}>Elimina definitivamente</Button>

@@ -49,6 +49,28 @@ describe("search_crm_leads", () => {
     expect(r.isError).toBe(true);
     expect(db.lead.findMany).not.toHaveBeenCalled();
   });
+
+  it("filtra chi non è stato contattato da N giorni ed espone i sotto-punteggi", async () => {
+    const breakdown = JSON.stringify({ v: 1, confidence: "media", dimensions: Object.fromEntries(["fit", "size", "reputation", "presence", "proximity", "data"].map((k) => [k, { score: 70, reason: "x" }])) });
+    db.lead.findMany.mockResolvedValue([
+      { id: "old", name: "Vecchio", stage: "negotiation", score: 70, scoreBreakdown: breakdown, activities: [{ createdAt: new Date("2026-10-01T10:00:00Z") }] },
+      { id: "recent", name: "Recente", stage: "negotiation", score: 60, scoreBreakdown: null, activities: [{ createdAt: new Date("2026-11-20T10:00:00Z") }] },
+      { id: "never", name: "Mai", stage: "negotiation", score: null, scoreBreakdown: null, activities: [] },
+    ]);
+    db.lead.count.mockResolvedValue(3);
+    const r = await executeCrmTool(USER, "search_crm_leads", { stage: "negotiation", notContactedForDays: 14 }, NOW);
+    const data = JSON.parse(r.content);
+    expect(data.leads.map((l: { id: string }) => l.id)).toEqual(["old", "never"]);
+    expect(data.leads[0].lastContactAt).toBe("2026-10-01");
+    expect(data.leads[0].scoreDimensions.Aderenza).toBe(70);
+    expect(data.leads[1].lastContactAt).toBeNull();
+  });
+
+  it("rifiuta input non validi (bis)", async () => {
+    const r = await executeCrmTool(USER, "search_crm_leads", { stage: "inesistente" });
+    expect(r.isError).toBe(true);
+    expect(db.lead.findMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("get_lead_details", () => {
@@ -61,14 +83,15 @@ describe("get_lead_details", () => {
 
   it("restituisce scheda e attività senza campi interni", async () => {
     db.lead.findFirst.mockResolvedValue({
-      id: "l1", userId: USER, name: "Bar Centrale", stage: "qualified", position: 3, briefing: "{}", scoreReason: '{"summary":"ok","factors":[]}',
+      id: "l1", userId: USER, name: "Bar Centrale", stage: "qualified", position: 3, briefing: '{"snapshot":"vecchio"}', scoreReason: '{"summary":"ok","factors":[]}',
       activities: [{ type: "note", content: "Ciao", dueAt: null, done: false, createdAt: NOW }],
     });
     const r = await executeCrmTool(USER, "get_lead_details", { leadId: "l1" });
     const data = JSON.parse(r.content);
     expect(data.userId).toBeUndefined();
     expect(data.position).toBeUndefined();
-    expect(data.hasBriefing).toBe(true);
+    expect(data.hasResearch).toBe(false); // briefing della versione precedente: non esposto come Scheda AI
+    expect(data.research).toBeNull();
     expect(data.scoreReason.summary).toBe("ok");
     expect(data.stageLabel).toBe("Qualificato");
     expect(r.action.leadId).toBe("l1");

@@ -8,9 +8,9 @@ const display = Instrument_Serif({ variable: "--font-display-serif", subsets: ["
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
-  title: { default: "Agentipro — Il copilota degli agenti di commercio", template: "%s · Agentipro" },
+  title: { default: "Agentipro — Il CRM con l'AI per agenti di commercio", template: "%s · Agentipro" },
   description:
-    "Trova nuovi clienti nella tua zona, scopri chi chiamare per primo e arriva a ogni visita con un briefing pronto. Agentipro è il CRM con l'AI pensato per gli agenti di commercio.",
+    "Trova nuovi clienti nella tua zona e conoscili con l'AI: informazioni dal web, recensioni, persone e un punteggio basato sui tuoi criteri. Agentipro è il CRM con l'AI pensato per gli agenti di commercio.",
 };
 
 export const viewport: Viewport = {

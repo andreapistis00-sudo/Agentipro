@@ -16,7 +16,7 @@ function plans(): Plan[] {
   const uses = (n: number) => [
     `${num(Math.floor(n / Math.max(1, cost.score)))} clienti valutati con l'AI`,
     `oppure ${num(Math.floor(n / Math.max(1, cost.chat)))} messaggi all'assistente`,
-    `oppure ${num(Math.floor(n / Math.max(1, cost.briefing)))} briefing pre-visita`,
+    `oppure ${num(Math.floor(n / Math.max(1, cost.briefing)))} Schede AI sui clienti`,
   ];
   const packs = creditPacks();
   return [
@@ -55,7 +55,7 @@ export function Pricing({ loggedIn }: { loggedIn: boolean }) {
             </H2>
             <p className="mt-6 max-w-2xl text-[15.5px] leading-[1.7] text-ink-2">
               Niente abbonamento: le funzioni AI usano crediti. Un punteggio costa {credits(cost.score)}, un messaggio
-              all&apos;assistente {credits(cost.chat)}, un briefing pre-visita {credits(cost.briefing)}. Ricerca clienti,
+              all&apos;assistente {credits(cost.chat)}, una Scheda AI {credits(cost.briefing)}. Ricerca clienti,
               CRM e pipeline non consumano nulla.
             </p>
           </div>

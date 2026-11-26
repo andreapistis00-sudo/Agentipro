@@ -15,13 +15,13 @@ export function Hero({ loggedIn }: { loggedIn: boolean }) {
             <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
             CRM con AI per agenti di commercio
           </p>
-          <h1 id="lp-hero-title" className="mt-7 font-display text-[clamp(4rem,8vw,6.6rem)] leading-[0.88] tracking-[-0.025em]">
-            Meno giri <br />a vuoto.
-            <span className="mt-1 block italic text-accent">Più strette <br />di mano.</span>
+          <h1 id="lp-hero-title" className="mt-7 font-display text-[clamp(3.6rem,7.2vw,6rem)] leading-[0.9] tracking-[-0.025em]">
+            Trova clienti <br />nella tua zona.
+            <span className="mt-1 block italic text-accent">Conoscili <br className="sm:hidden" />con l&apos;AI.</span>
           </h1>
-          <p className="mt-7 max-w-[34rem] text-[17px] leading-[1.6] text-ink-2 sm:text-[19px]">
-            Agentipro trova le attività della tua zona, ti dice <span className="text-ink">chi chiamare per primo</span> e
-            ti prepara un <span className="text-ink">briefing prima di ogni visita</span>. Tu pensi a vendere. Al resto ci pensa lui.
+          <p className="mt-7 max-w-[35rem] text-[17px] leading-[1.6] text-ink-2 sm:text-[19px]">
+            Agentipro cerca le attività per categoria e città, raccoglie dal web <span className="text-ink">informazioni, recensioni e persone</span> di
+            ognuna, le valuta con un <span className="text-ink">punteggio basato sui tuoi criteri</span> e le organizza in un CRM con pipeline, note e promemoria.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             {loggedIn ? (

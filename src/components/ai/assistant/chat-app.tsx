@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowUp, CalendarRange, Mail, Menu, MessageCircleQuestion, PhoneCall, Plus, Square, User, X, BellPlus, ClipboardList,
+  ArrowUp, BarChart3, BellPlus, Clock, Globe, ListChecks, Menu, NotebookText, Plus, Square, User, UserSearch, X,
 } from "lucide-react";
 import { Badge, Button, Dialog, Spinner, useToast } from "@/components/ui";
 import type { ChatEvent, ChatMessageView, ConversationSummary } from "@/lib/ai/schemas";
@@ -37,17 +37,17 @@ function setUrl(params: { c?: string | null; leadId?: string | null }, mode: "pu
 function suggestionsFor(lead: ChatLead | null) {
   if (lead) {
     return [
-      { icon: ClipboardList, text: `Cosa devo sapere prima di visitare ${lead.name}?` },
-      { icon: Mail, text: `Scrivimi un'email di primo contatto per ${lead.name}` },
+      { icon: UserSearch, text: `Cosa sai di ${lead.name}?` },
+      { icon: Globe, text: `Trova informazioni online su ${lead.name}` },
+      { icon: NotebookText, text: "Riassumi le note e le attività su questo cliente" },
       { icon: BellPlus, text: "Ricordami di richiamarlo venerdì" },
-      { icon: MessageCircleQuestion, text: "Come rispondo se mi dice «ho già un fornitore»?" },
     ];
   }
   return [
-    { icon: PhoneCall, text: "Chi dovrei chiamare oggi?" },
-    { icon: Mail, text: "Scrivimi un'email di primo contatto per un nuovo cliente" },
-    { icon: MessageCircleQuestion, text: "Come rispondo a «costa troppo»?" },
-    { icon: CalendarRange, text: "Prepara un piano visite per questa settimana" },
+    { icon: Clock, text: "Quali clienti in Trattativa non sento da 2 settimane?" },
+    { icon: BarChart3, text: "Confronta i miei 5 clienti con punteggio più alto" },
+    { icon: Globe, text: "Trova informazioni online su un'attività della mia zona" },
+    { icon: ListChecks, text: "Cosa ho in scadenza questa settimana?" },
   ];
 }
 
@@ -332,8 +332,8 @@ export function ChatApp({ userName, demo, profileIncomplete, initialConversation
                 </h2>
                 <p className="mt-2 max-w-xl text-[14.5px] text-ink-2">
                   {lead
-                    ? `Conosco la scheda e lo storico di questo cliente${lead.city ? ` (${lead.city})` : ""}: chiedimi un messaggio, una strategia o di registrare un promemoria.`
-                    : "Conosco il tuo CRM e il tuo profilo: chiedimi chi contattare, testi pronti da inviare, come gestire un'obiezione o un giro visite."}
+                    ? `Conosco la scheda, lo storico e la Scheda AI di questo cliente${lead.city ? ` (${lead.city})` : ""}: chiedimi cosa sappiamo, di cercare altre informazioni online o di registrare una nota.`
+                    : "Rispondo su clienti e CRM, cerco informazioni sulle attività sul web, confronto clienti e registro note e promemoria quando me lo chiedi."}
                 </p>
                 <div className="mt-6 grid gap-2 sm:grid-cols-2">
                   {suggestions.map(({ icon: Icon, text }) => (

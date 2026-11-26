@@ -23,13 +23,13 @@ export default function PrivacyPage() {
         {
           h: "Perché li trattiamo",
           p: [
-            "Solo per farti usare il servizio: mostrarti il tuo CRM, calcolare i punteggi, preparare briefing e risposte dell'assistente. Non vendiamo i tuoi dati e non li usiamo per pubblicità.",
+            "Solo per farti usare il servizio: mostrarti il tuo CRM, calcolare i punteggi, compilare le Schede AI e rispondere tramite l'assistente. Non vendiamo i tuoi dati e non li usiamo per pubblicità.",
           ],
         },
         {
           h: "Intelligenza artificiale",
           p: [
-            "Per le funzioni AI (lead score, briefing, assistente) i dati necessari vengono inviati a un fornitore di modelli linguistici che li elabora per conto nostro, al solo scopo di generare la risposta richiesta.",
+            "Per le funzioni AI (punteggio, Scheda AI, assistente) i dati necessari vengono inviati a un fornitore di modelli linguistici che li elabora per conto nostro, al solo scopo di generare la risposta richiesta.",
           ],
         },
         {

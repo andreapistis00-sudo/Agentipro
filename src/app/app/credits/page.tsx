@@ -53,7 +53,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const costs = [
     { label: "Punteggio AI", unit: "per cliente valutato", cost: creditCost("score") },
     { label: "Messaggio all'assistente", unit: "per messaggio", cost: creditCost("chat") },
-    { label: "Briefing pre-visita", unit: "per briefing", cost: creditCost("briefing") },
+    { label: "Scheda AI (ricerca sul cliente)", unit: "per scheda", cost: creditCost("briefing") },
   ];
   const added = Number(sp.credits);
 
@@ -136,7 +136,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                 {(p.priceCents / p.credits).toLocaleString("it-IT", { maximumFractionDigits: 1 })} cent a credito
               </p>
               <p className={cn("mt-4 flex-1 text-[13px] leading-relaxed", p.featured ? "text-bg/75" : "text-ink-2")}>
-                Fino a {num(Math.floor(p.credits / Math.max(1, creditCost("score"))))} clienti valutati, {num(Math.floor(p.credits / Math.max(1, creditCost("chat"))))} messaggi o {num(Math.floor(p.credits / Math.max(1, creditCost("briefing"))))} briefing.
+                Fino a {num(Math.floor(p.credits / Math.max(1, creditCost("score"))))} clienti valutati, {num(Math.floor(p.credits / Math.max(1, creditCost("chat"))))} messaggi o {num(Math.floor(p.credits / Math.max(1, creditCost("briefing"))))} Schede AI.
               </p>
               <BuyButton packId={p.id} label={`Acquista ${num(p.credits)} crediti`} disabled={!payments} featured={p.featured} />
             </li>

@@ -17,7 +17,7 @@ export const REASON_LABELS: Record<CreditReason, string> = {
   topup: "Ricarica",
   score: "Punteggio AI",
   chat: "Messaggio all'assistente",
-  briefing: "Briefing pre-visita",
+  briefing: "Scheda AI (ricerca sul cliente)",
   refund: "Rimborso (operazione AI non riuscita)",
 };
 export const reasonLabel = (r: string) => REASON_LABELS[r as CreditReason] ?? r;
@@ -29,7 +29,7 @@ function envInt(name: string, fallback: number) {
   return Number.isInteger(n) && n >= 0 ? n : fallback;
 }
 
-/** Costo in crediti di un'azione AI (configurabile da env). Score: per lead · chat: per messaggio · briefing: per briefing. */
+/** Costo in crediti di un'azione AI (configurabile da env). Score: per lead · chat: per messaggio · briefing: per Scheda AI. */
 export function creditCost(feature: CreditFeature): number {
   switch (feature) {
     case "score":

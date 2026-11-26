@@ -5,10 +5,10 @@ import type { Conversation, Message } from "@prisma/client";
 import { db } from "@/lib/db";
 import { MODEL_FAST, MODEL_SMART, anthropic, isAiDemo } from "@/lib/ai";
 import { CHAT_BETA, WEB_SEARCH_TOOL, echoContent, sleep } from "./client";
-import { SourceCollector } from "./briefing";
+import { SourceCollector } from "./research";
 import {
-  chunkText, demoAnswerEmail, demoAnswerFollowups, demoAnswerGeneric, demoAnswerLeadAdvice, demoAnswerObjection,
-  demoAnswerPlan, demoAnswerPrioritize, demoTitle, detectIntent, type DemoFollowups, type DemoLeadRow,
+  chunkText, demoAnswerCompare, demoAnswerEmail, demoAnswerFollowups, demoAnswerGeneric, demoAnswerLeadInfo, demoAnswerStale,
+  demoAnswerSummary, demoAnswerWeb, demoTitle, detectIntent, type DemoFollowups, type DemoLeadDetails, type DemoLeadRow,
 } from "./demo";
 import { leadToText, todayIt, type SellerProfile } from "./lead-context";
 import { TITLE_SYSTEM_PROMPT, chatSystemPrompt } from "./prompts";
@@ -278,18 +278,31 @@ async function runDemo({ user, conversation, message, emit, signal }: RunArgs): 
   };
 
   const lead = conversation.leadId
-    ? await db.lead.findFirst({ where: { id: conversation.leadId, userId: user.id }, select: { id: true, name: true, category: true, city: true, contactName: true, stage: true, score: true, nextFollowUp: true } })
+    ? await db.lead.findFirst({ where: { id: conversation.leadId, userId: user.id }, select: { id: true, name: true, city: true, contactName: true } })
     : null;
   const intent = detectIntent(message, Boolean(lead));
   await sleep(300, signal);
 
+  /** Scheda del cliente della conversazione, oppure del cliente nominato nel messaggio. */
+  const details = async (target: string | null): Promise<DemoLeadDetails | null> => {
+    let id = lead?.id ?? null;
+    if (!id && target) {
+      const res = (await tool("search_crm_leads", { q: target.split(/\s+/).slice(0, 3).join(" "), limit: 1 })) as { leads: DemoLeadRow[] } | null;
+      id = res?.leads?.[0]?.id ?? null;
+    }
+    return id ? ((await tool("get_lead_details", { leadId: id })) as DemoLeadDetails | null) : null;
+  };
+
   let answer: string;
   switch (intent.kind) {
-    case "prioritize": {
-      const due = (await tool("list_due_followups", { days: 3 })) as DemoFollowups | null;
-      const res = (await tool("search_crm_leads", { orderBy: "score", limit: 8 })) as { leads: DemoLeadRow[] } | null;
-      const active = (res?.leads ?? []).filter((l) => l.stage !== "won" && l.stage !== "lost");
-      answer = demoAnswerPrioritize(active, due ?? { followups: [], openTasks: [] }, user);
+    case "compare": {
+      const res = (await tool("search_crm_leads", { orderBy: "score", limit: 5 })) as { leads: DemoLeadRow[] } | null;
+      answer = demoAnswerCompare(res?.leads ?? []);
+      break;
+    }
+    case "stale": {
+      const res = (await tool("search_crm_leads", { orderBy: "score", limit: 10, notContactedForDays: intent.days, ...(intent.stage && { stage: intent.stage }) })) as { leads: DemoLeadRow[] } | null;
+      answer = demoAnswerStale(res?.leads ?? [], intent.days, intent.stage);
       break;
     }
     case "followups": {
@@ -297,27 +310,23 @@ async function runDemo({ user, conversation, message, emit, signal }: RunArgs): 
       answer = demoAnswerFollowups(due ?? { followups: [], openTasks: [] });
       break;
     }
-    case "email": {
-      let target = lead;
-      if (!target && intent.target) {
-        const res = (await tool("search_crm_leads", { q: intent.target.split(/\s+/).slice(0, 3).join(" "), limit: 1 })) as { leads: DemoLeadRow[] } | null;
-        const found = res?.leads?.[0];
-        if (found) {
-          const det = await tool("get_lead_details", { leadId: found.id });
-          if (det) target = { id: det.id, name: det.name, category: det.category, city: det.city, contactName: det.contactName, stage: det.stage, score: det.score, nextFollowUp: det.nextFollowUp };
-        }
-      } else if (target) {
-        await tool("get_lead_details", { leadId: target.id });
-      }
-      answer = demoAnswerEmail(user, target, intent.target);
+    case "lead_info": {
+      const d = await details(intent.target);
+      answer = d ? demoAnswerLeadInfo(d) : intent.target ? `Non ho trovato «${intent.target}» nel tuo CRM.` : demoAnswerGeneric(message, user);
       break;
     }
-    case "objection":
-      answer = demoAnswerObjection(intent.objection, user);
+    case "web": {
+      answer = demoAnswerWeb(await details(intent.target), intent.target);
       break;
-    case "plan": {
-      const res = (await tool("search_crm_leads", { orderBy: "score", limit: 20 })) as { leads: DemoLeadRow[] } | null;
-      answer = demoAnswerPlan((res?.leads ?? []).filter((l) => l.stage !== "won" && l.stage !== "lost"), user);
+    }
+    case "summary": {
+      const d = await details(null);
+      answer = d ? demoAnswerSummary(d) : "Non ho trovato il cliente.";
+      break;
+    }
+    case "email": {
+      const d = await details(lead ? null : intent.target);
+      answer = demoAnswerEmail(user, d ? { name: d.name, city: d.city, contactName: d.contactName } : null, intent.target);
       break;
     }
     case "note": {
@@ -332,13 +341,9 @@ async function runDemo({ user, conversation, message, emit, signal }: RunArgs): 
     }
     case "stage": {
       const done = await tool("update_lead_stage", { leadId: lead!.id, stage: intent.stage });
-      answer = done ? `Fatto: **${lead!.name}** è ora in fase **${actions.at(-1)?.label.split("→ ")[1] ?? intent.stage}**. Vuoi che aggiunga anche una nota con i dettagli?` : "Non sono riuscito ad aggiornare la fase.";
+      answer = done ? `Fatto: **${lead!.name}** è ora in fase **${actions.at(-1)?.label.split("→ ")[1] ?? intent.stage}**.` : "Non sono riuscito ad aggiornare la fase.";
       break;
     }
-    case "lead_advice":
-      await tool("get_lead_details", { leadId: lead!.id });
-      answer = demoAnswerLeadAdvice(lead!, user);
-      break;
     default:
       answer = demoAnswerGeneric(message, user);
   }

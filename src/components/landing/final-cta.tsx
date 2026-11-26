@@ -26,7 +26,7 @@ function Receipt() {
         </p>
       ))}
       <p className="my-3 border-t border-dashed border-current opacity-40" />
-      <p className="flex justify-between"><span>BRIEFING PRONTI</span><span>5/5</span></p>
+      <p className="flex justify-between"><span>SCHEDE AI</span><span>5/5</span></p>
       <p className="flex justify-between"><span>RICHIAMI</span><span>3</span></p>
       <p className="flex justify-between font-semibold"><span>PIPELINE APERTA</span><span>14.200 €</span></p>
       <p className="my-3 border-t border-dashed border-current opacity-40" />
@@ -42,10 +42,10 @@ export function FinalCta({ loggedIn }: { loggedIn: boolean }) {
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.16em] opacity-70">Ultima fermata</p>
           <h2 id="lp-cta-title" className="mt-6 max-w-[14ch] font-display text-[clamp(3rem,7vw,6.6rem)] leading-[0.9] tracking-[-0.025em]">
-            Domattina, parti col giro <span className="italic">già fatto.</span>
+            Inizia dalla <span className="italic">tua zona.</span>
           </h2>
           <p className="mt-7 max-w-lg text-[17px] leading-relaxed opacity-80">
-            Crei l&apos;account in un minuto, dici cosa vendi e fai la prima ricerca nella tua zona. Il caffè col titolare, quello, offrilo tu.
+            Crei l&apos;account in un minuto, descrivi cosa vendi e fai la prima ricerca. I primi crediti AI sono gratis, senza carta.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
             <Link
