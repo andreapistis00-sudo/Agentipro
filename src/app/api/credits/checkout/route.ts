@@ -34,7 +34,12 @@ export async function POST(req: Request) {
           price_data: {
             currency: "eur",
             unit_amount: pack.priceCents,
-            product_data: { name: `Agentipro – ${pack.credits} crediti`, description: "Crediti per le funzioni AI di Agentipro" },
+            product_data: {
+              name: `Agentipro – ${pack.credits} crediti`,
+              description: "Crediti per le funzioni AI di Agentipro",
+              // Servizi forniti elettronicamente (richiesto da Stripe per il calcolo delle imposte).
+              tax_code: process.env.STRIPE_TAX_CODE || "txcd_10000000",
+            },
           },
         },
       ],
