@@ -66,7 +66,7 @@ Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Prisma +
 2. Nel servizio: **Settings → Volumes → Add Volume** con mount path `/data` (qui vive il database SQLite).
 3. **Variables**: `DATABASE_URL=file:/data/agentipro.db`, `AUTH_SECRET=<stringa casuale lunga>`, `APP_URL=https://<il-tuo-dominio>.up.railway.app` e, per l'AI reale, `ANTHROPIC_API_KEY`.
 4. **Settings → Networking → Generate Domain**. Build e avvio usano `railway.json`: il database si crea da solo al primo avvio.
-5. Facoltativo, per l'utente demo: dalla CLI di Railway `railway run npm run db:seed`, oppure registrati dalla pagina `/register`.
+5. Apri il dominio e crea il tuo account da `/register`.
 
 ## Note per la produzione
 
