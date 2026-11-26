@@ -36,6 +36,7 @@ Apri http://localhost:3000. Con il seed puoi accedere come `demo@agentipro.it` /
 | `AI_MODEL_SMART` | no | Modello per chat e briefing (default `claude-opus-5-5`). |
 | `AI_MODEL_FAST` | no | Modello per il lead score massivo (default `claude-haiku-5-5`). |
 | `GOOGLE_PLACES_API_KEY` | no | Abilita Google Places (API New). Senza chiave si usa OpenStreetMap. |
+| `SEARCH_COUNTRYCODES` | no | Paesi in cui cercare i luoghi (default `it`; vuoto = tutto il mondo). |
 | `LEADS_DEMO_MODE` | no | `true` forza risultati di ricerca dimostrativi (utile offline). |
 
 ## Script

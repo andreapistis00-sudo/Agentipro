@@ -205,10 +205,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2" aria-live="polite">
+      <div className="pointer-events-none fixed bottom-20 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 flex-col items-center gap-2 lg:bottom-6" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={cn(
-            "pointer-events-auto rounded-full px-4 py-2 text-sm font-medium shadow-pop",
+            "pointer-events-auto rounded-2xl px-4 py-2 text-center text-sm font-medium shadow-pop",
             t.tone === "error" ? "bg-danger text-white" : t.tone === "info" ? "bg-surface text-ink border border-line" : "bg-ink text-bg",
           )}>
             {t.message}
