@@ -57,9 +57,9 @@ describe("parseOverpass", () => {
 });
 
 describe("buildOverpassQuery", () => {
-  it("usa i tag della categoria e il raggio in metri", () => {
+  it("usa i tag della categoria e un riquadro attorno al centro", () => {
     const q = buildOverpassQuery({ category: matchCategory("bar"), text: "bar", center, radiusKm: 2.5 });
-    expect(q).toContain('nwr["amenity"~"^(bar|cafe)$"]["name"](around:2500,45.464200,9.190000);');
+    expect(q).toMatch(/nwr\["amenity"~"\^\(bar\|cafe\)\$"\]\["name"\]\(45\.44\d+,9\.15\d+,45\.48\d+,9\.22\d+\);/);
     expect(q).toContain("out center tags");
   });
 

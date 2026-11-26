@@ -32,11 +32,16 @@ function tagFilter(t: OsmTag): string {
 
 /** Costruisce la query Overpass QL per una categoria nota o, in mancanza, per nome. */
 export function buildOverpassQuery(opts: { category: Category | null; text: string; center: GeoPoint; radiusKm: number }): string {
-  const around = `(around:${Math.round(opts.radiusKm * 1000)},${opts.center.lat.toFixed(6)},${opts.center.lng.toFixed(6)})`;
+  // Riquadro (bbox) invece di `around`: è indicizzato e molto più veloce sui server pubblici.
+  // I risultati fuori dal raggio vengono scartati in parseOverpass.
+  const dLat = opts.radiusKm / 111.32;
+  const dLng = opts.radiusKm / (111.32 * Math.max(0.01, Math.cos((opts.center.lat * Math.PI) / 180)));
+  const f = (n: number) => n.toFixed(6);
+  const around = `(${f(opts.center.lat - dLat)},${f(opts.center.lng - dLng)},${f(opts.center.lat + dLat)},${f(opts.center.lng + dLng)})`;
   const statements = opts.category
     ? opts.category.tags.map((t) => `  nwr${tagFilter(t)}["name"]${around};`)
     : POI_KEYS.map((k) => `  nwr["name"~"${escapeOverpass(escapeRegex(opts.text.trim()))}",i]["${k}"]${around};`);
-  return `[out:json][timeout:25];\n(\n${statements.join("\n")}\n);\nout center tags 400;`;
+  return `[out:json][timeout:20];\n(\n${statements.join("\n")}\n);\nout center tags 400;`;
 }
 
 const firstValue = (v: string | undefined) => v?.split(";")[0]?.trim() || null;
@@ -48,7 +53,7 @@ export function normalizeWebsite(url: string | null | undefined): string | null 
 }
 
 /** Converte gli elementi Overpass in SearchResult (scarta quelli senza nome o coordinate). */
-export function parseOverpass(data: { elements?: OverpassElement[] }, center: GeoPoint, category: Category | null): SearchResult[] {
+export function parseOverpass(data: { elements?: OverpassElement[] }, center: GeoPoint, category: Category | null, radiusKm = Infinity): SearchResult[] {
   const seen = new Set<string>();
   const out: SearchResult[] = [];
   for (const el of data.elements ?? []) {
@@ -57,6 +62,7 @@ export function parseOverpass(data: { elements?: OverpassElement[] }, center: Ge
     const lat = el.lat ?? el.center?.lat;
     const lng = el.lon ?? el.center?.lon;
     if (!name || lat == null || lng == null) continue;
+    if (haversineKm(center, { lat, lng }) > radiusKm) continue;
     const sourceId = `${el.type}/${el.id}`;
     if (seen.has(sourceId)) continue;
     seen.add(sourceId);
@@ -109,7 +115,7 @@ export async function searchOverpass(opts: { category: Category | null; text: st
     const data = (await res.json().catch(() => null)) as { elements?: OverpassElement[]; remark?: string } | null;
     if (!data) throw new ProviderUnavailableError("Risposta Overpass non leggibile");
     if (!data.elements?.length && data.remark?.includes("timed out")) throw new ProviderUnavailableError("Overpass ha superato il tempo massimo");
-    return parseOverpass(data, opts.center, opts.category);
+    return parseOverpass(data, opts.center, opts.category, opts.radiusKm);
   };
 
   try {
