@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",
@@ -42,5 +43,8 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.2"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
